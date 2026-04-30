@@ -1,0 +1,27 @@
+{
+  "title": "张家界供水",
+  "config": {
+    "step": {
+      "user": {
+        "title": "张家界供水",
+        "description": "配置张家界市自来水有限责任公司账户信息",
+        "data": {
+          "account_no": "户号",
+          "openid": "微信 OpenID",
+          "account_name": "账户名称（可选）"
+        },
+        "data_description": {
+          "account_no": "账单上的 8 位用户编号",
+          "openid": "从微信抓包获取的 OpenID"
+        }
+      }
+    },
+    "error": {
+      "invalid_account": "户号格式不正确，请检查",
+      "invalid_openid": "OpenID 格式不正确，请检查"
+    },
+    "abort": {
+      "already_configured": "此账户已配置"
+    }
+  }
+}
