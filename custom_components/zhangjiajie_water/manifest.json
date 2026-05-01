@@ -1,7 +1,7 @@
 {
   "domain": "zhangjiajie_water",
   "name": "张家界供水",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "config_flow": true,
   "documentation": "https://github.com/yahooor/zhangjiajie_water_ha",
   "codeowners": ["@yahooor"],
