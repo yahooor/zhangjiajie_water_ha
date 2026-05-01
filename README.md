@@ -83,6 +83,22 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### v1.2.6 (2026-05-02)
+- **修复**：`_attr_translation_key` 改为类级别声明，修复 entity name 翻译失效问题（所有实体显示为账户名称而非翻译后的实体名）
+- `translation_placeholders` 从 property 改为 `_attr_translation_placeholders` 实例属性
+
+### v1.2.5 (2026-05-01)
+- **修复**：`last_payment_date` 的 `native_value` 增加 `isinstance(value, date)` 判断，避免重复解析 date 对象
+- 字符串解析失败时返回 `None`
+- MONETARY 传感器 `state_class` 设为 `None`
+
+### v1.2.4 (2026-05-01)
+- 添加 brand/ 品牌图标（dark_icon、dark_logo、icon、logo）
+
+### v1.2.3 (2026-05-01)
+- **修复**：`_fetch_usage` 跨年数据混入 — 先检查 `records[0].ysny` 是否为本年，再决定是否 extend，避免将旧年度数据混入本年统计
+- 删除冗余的 `first_ym` 变量赋值
+
 ### v1.2.2 (2026-05-01)
 - **同步**：README 与 GitHub 在线仓库保持一致
 
