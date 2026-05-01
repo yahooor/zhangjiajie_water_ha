@@ -50,10 +50,10 @@ OpenID 是微信公众号的用户标识，获取方法：
 
 示例请求：
 ```
-type=1&custCode=115062401,1,10,1&wxid=oumDiv6xOpOgDU0IXeV68Nc963IA
+type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 ```
 
-其中 `oumDiv6xOpOgDU0IXeV68Nc963IA` 即为 OpenID。
+其中 `oXxXxXxXxXxXxXxXxXxXxXxXxX` 即为 OpenID。
 
 ## 传感器
 
@@ -82,6 +82,11 @@ type=1&custCode=115062401,1,10,1&wxid=oumDiv6xOpOgDU0IXeV68Nc963IA
 - 数据来自供水公司微信公众号接口，仅供个人使用
 
 ## 更新日志
+
+### v1.2.1 (2026-05-01)
+- **修复**：翻页逻辑致命错误 — `current_year` 判断从 `records[-1]` 改为 `records[0]`，此前 annual_usage/annual_bill 数据严重偏少
+- **修复**：const.py 版本号 1.2.0 与 manifest.json 1.2.1 不一致，已统一为 1.2.1
+- **修复**：last_payment_amount 缺少 state_class，已补上 MEASUREMENT
 
 ### v1.2.0 (2026-05-01)
 - **修复**：金额单位 `"元"` → `"CNY"`（ISO 4217 货币码，MONETARY device_class 规范要求）
