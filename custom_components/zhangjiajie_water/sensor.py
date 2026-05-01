@@ -52,10 +52,14 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
         self._attr_state_class = state_class
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
         self._attr_device_info = coordinator.device_info
+        # 年度传感器名称注入当前年份（coordinator.data 在 add_entities 时已填充）
+        if key in ("annual_usage", "annual_bill") and coordinator.data:
+            year = coordinator.data.get("_year", "")
+            if year:
+                self._attr_name = f"{year}年{name}"
 
     @property
     def native_value(self):
-        from datetime import datetime, date
         value = self.coordinator.data.get(self._key)
         if value is None:
             return None
