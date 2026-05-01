@@ -83,6 +83,9 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### v1.2.2 (2026-05-01)
+- **同步**：README 与 GitHub 在线仓库保持一致
+
 ### v1.2.1 (2026-05-01)
 - **修复**：翻页逻辑致命错误 — `current_year` 判断从 `records[-1]` 改为 `records[0]`，此前 annual_usage/annual_bill 数据严重偏少
 - **修复**：const.py 版本号 1.2.0 与 manifest.json 1.2.1 不一致，已统一为 1.2.1
