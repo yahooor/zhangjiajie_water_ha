@@ -83,6 +83,22 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### v2.0.2 (2026-05-02)
+- **实体名称不显示**：之前通过 `translation_key` + `has_entity_name` 方式设置实体名称，但 translation 系统加载失败时会导致实体名称变成设备名（如「李静天下二期」）。改为直接在代码中设置实体名称，更加可靠。
+- 移除 `_attr_has_entity_name = True`
+- 移除 `_attr_translation_key`（translation file 仍保留用于 config/options 界面）
+- 实体名称改为 `self._attr_name = name` 直接设置
+- 实体 ID 格式：`sensor.zjw_115062401_balance`（基于 unique_id，不再基于设备名）
+
+### v2.0.1 (2026-05-02)
+- **翻译文件损坏**：zh.json 和 strings.json 的中文字符在上传时被损坏，实体名称无法显示。重新上传 UTF-8 编码文件。
+- **translation_placeholders**：非年度传感器不再设置 `translation_placeholders = None`，避免覆盖翻译系统的默认行为。
+- （此版本 tag 已存在但未正式发布）
+
+### v2.0.0 (2026-05-02)
+- **版本号不符合 PEP 440**：manifest.json 中 `version: "1.2.6b"` 不符合 pip 版本规范，Home Assistant 拒绝加载。升级到 2.0.0。
+- 跳过 1.2.6b（该版本号无法在 HA 中使用）
+
 ### v1.2.6 (2026-05-02)
 - **修复**：`_attr_translation_key` 改为类级别声明，修复 entity name 翻译失效问题（所有实体显示为账户名称而非翻译后的实体名）
 - `translation_placeholders` 从 property 改为 `_attr_translation_placeholders` 实例属性
