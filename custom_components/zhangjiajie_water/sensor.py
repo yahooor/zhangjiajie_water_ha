@@ -8,15 +8,15 @@ from .const import DOMAIN
 
 # (name, icon, unit, device_class, state_class)
 BASE_SENSORS = {
-    "balance": ("账户余额", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
+    "balance": ("账户余额", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, None),
     "last_payment_date": ("上次缴费日期", "mdi:calendar", None, SensorDeviceClass.DATE, None),
-    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
+    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, None),
     "current_usage": ("本期用水量", "mdi:water", "m³", None, SensorStateClass.MEASUREMENT),
-    "current_bill": ("本期水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
+    "current_bill": ("本期水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
     "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
     "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None),
     "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.TOTAL_INCREASING),
-    "annual_bill": ("年累计水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.TOTAL_INCREASING),
+    "annual_bill": ("年累计水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
 }
 
 
@@ -70,9 +70,21 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
+        from datetime import datetime, date
         value = self.coordinator.data.get(self._key)
         if value is None:
             return None
+        # DATE device_class: must return date object, not string
+        if self._key == "last_payment_date":
+            if isinstance(value, date):
+                return value
+            if isinstance(value, str) and len(value) == 10:
+                try:
+                    return datetime.strptime(value, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+            return None  # return None instead of string to avoid HA error
+        # MONETARY: round floats
         if isinstance(value, (int, float)) and self._attr_device_class == SensorDeviceClass.MONETARY:
             return round(float(value), 2)
         return value
