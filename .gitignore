@@ -3,3 +3,7 @@ __pycache__/
 debug_api.py
 config_0.py
 _fix.py
+release_response.json
+update_release_body.json
+zhangjiajie_water.zip
+zhangjiajie_water/

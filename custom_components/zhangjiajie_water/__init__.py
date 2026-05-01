@@ -93,11 +93,12 @@ class ZhangjiajieWaterAPI:
 class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
     """数据协调器"""
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        update_interval = entry.options.get("update_interval", 6)
         super().__init__(
             hass,
             _LOGGER,
             name=f"{DOMAIN} {entry.data['account_no']}",
-            update_interval=timedelta(hours=6),
+            update_interval=timedelta(hours=update_interval),
         )
         self.entry = entry
         self.api = ZhangjiajieWaterAPI(
@@ -201,7 +202,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle options update."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

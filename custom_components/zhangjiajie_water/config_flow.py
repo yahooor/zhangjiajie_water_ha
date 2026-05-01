@@ -5,6 +5,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.core import callback
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +40,39 @@ class ZhangjiajieWaterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "account_no": "户号（客户编码），账单或发票上可查",
                 "openid": "微信 OpenID，通过 Stream 抓包获取",
+            },
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> OptionsFlow:
+        """Get the options flow for this handler."""
+        return ZhangjiajieWaterOptionsFlow(config_entry)
+
+
+class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow for Zhangjiajie Water."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        update_interval = self._config_entry.options.get("update_interval", 6)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Optional("update_interval", default=update_interval): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=24)
+                ),
+            }),
+            description_placeholders={
+                "update_interval": "数据刷新间隔（小时）",
             },
         )
 

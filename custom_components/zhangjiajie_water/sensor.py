@@ -1,21 +1,22 @@
 from __future__ import annotations
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
-from homeassistant.core import HomeAssistant
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
 from .const import DOMAIN
 
+# (name, icon, unit, device_class, state_class)
 BASE_SENSORS = {
-    "balance": ("账户余额", "mdi:cash", "元", SensorDeviceClass.MONETARY),
-    "last_payment_date": ("上次缴费日期", "mdi:calendar", None, None),
-    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "元", SensorDeviceClass.MONETARY),
-    "current_usage": ("本期用水量", "mdi:water", "m³", None),
-    "current_bill": ("本期水费", "mdi:currency-cny", "元", SensorDeviceClass.MONETARY),
-    "latest_reading": ("最新读数", "mdi:gauge", "m³", None),
-    "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None),
-    "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None),
-    "annual_bill": ("年累计水费", "mdi:currency-cny", "元", SensorDeviceClass.MONETARY),
+    "balance": ("账户余额", "mdi:cash", "元", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
+    "last_payment_date": ("上次缴费日期", "mdi:calendar", None, None, None),
+    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "元", SensorDeviceClass.MONETARY, None),
+    "current_usage": ("本期用水量", "mdi:water", "m³", None, SensorStateClass.MEASUREMENT),
+    "current_bill": ("本期水费", "mdi:currency-cny", "元", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
+    "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.TOTAL_INCREASING),
+    "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None),
+    "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.TOTAL_INCREASING),
+    "annual_bill": ("年累计水费", "mdi:currency-cny", "元", SensorDeviceClass.MONETARY, SensorStateClass.TOTAL_INCREASING),
 }
 
 
@@ -32,14 +33,17 @@ async def async_setup_entry(
 
 
 class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator,
         key: str,
         name: str,
         icon: str,
-        unit: str,
+        unit: str | None,
         device_class: str | None,
+        state_class: str | None,
     ) -> None:
         super().__init__(coordinator)
         self._key = key
@@ -47,11 +51,13 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
         self._attr_icon = icon
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = device_class
+        self._attr_state_class = state_class
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
         self._attr_device_info = coordinator.device_info
+        self._attr_translation_key = key
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         # 年度传感器名字拼入当前年份
         if self._key in ("annual_usage", "annual_bill"):
             year = self.coordinator.data.get("_year", "")

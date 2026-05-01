@@ -73,7 +73,7 @@ type=1&custCode=115062401,1,10,1&wxid=oumDiv6xOpOgDU0IXeV68Nc963IA
 
 - **余额**：为最近一次缴费后的余额快照，非实时余额
 - **水费构成**：含水费、污水处理费、垃圾处理费等
-- **更新间隔**：默认 6 小时，可在选项中修改
+- **更新间隔**：默认 6 小时，可在集成选项中修改
 
 ## 注意事项
 
@@ -82,6 +82,19 @@ type=1&custCode=115062401,1,10,1&wxid=oumDiv6xOpOgDU0IXeV68Nc963IA
 - 数据来自供水公司微信公众号接口，仅供个人使用
 
 ## 更新日志
+
+### v1.1.0 (2026-05-01)
+- **新增**：Options Flow — 支持在集成选项中调整刷新间隔（1~24小时）
+- **新增**：translations/zh.json — 配置流和选项界面完整中文翻译
+- **新增**：`_attr_has_entity_name = True` + `translation_key` — HA 2024.1+ 实体命名规范
+- **新增**：`SensorStateClass` — 余额/用量 MEASUREMENT，累计 TOTAL_INCREASING，支持长期统计
+- **新增**：`issue_tracker` — manifest 添加 Issues 链接
+- **修复**：latest_read 单位移除 m³（读数无量纲）
+- **优化**：strings.json 增加 options 和 entity 翻译段
+
+### v1.0.1 (2026-05-01)
+- 优化配置流中文字段标签（户号/账户名称）
+- 全量代码逻辑审查通过
 
 ### v1.0.0 (2026-05-01)
 - **首发**：张家界供水 HA 集成首发
