@@ -153,15 +153,17 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             records = await self.api.fetch_usage_records(page=page)
             if not records:
                 break
-            all_records.extend(records)
+            # Bug-2 修复：先检查本页首条年月是否为本年，不为本年则不再获取更多页
             first_ym = records[0].get("ysny", "")
             if not first_ym or not first_ym.startswith(current_year):
+                # 本页已全是跨年或无效数据，不再添加，直接停止
                 break
+            # 本页确认属于本年，才加入
+            all_records.extend(records)
             page += 1
         if not all_records:
             return {}
         latest = all_records[0]
-        first_ym = records[0].get("ysny", "") if records else ""
         raw_month = latest.get("ysny", "")
         # "202604" → "2026年4月"
         formatted_month = f"{raw_month[:4]}年{int(raw_month[4:])}月" if len(raw_month) == 6 and raw_month.isdigit() else raw_month
