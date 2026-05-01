@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.device_registry import DeviceInfo
-from .const import DOMAIN, BASE_URL, API_PATH
+from .const import DOMAIN, BASE_URL, API_PATH, INTEGRATION_VERSION
 import asyncio
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,10 +29,23 @@ class ZhangjiajieWaterAPI:
         self.openid = openid
         self.base_url = BASE_URL
         self.api_path = API_PATH
+        self._session: aiohttp.ClientSession | None = None
+
+    async def async_close(self) -> None:
+        """关闭 HTTP session"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """获取或创建复用的 ClientSession"""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))
+        return self._session
 
     def _make_custcode(self, page: int) -> str:
-        """构建分页参数: 户号,页码,每页数量,1=用水/2=缴费"""
-        # 末尾 "1" 为接口固定参数，抓包确认所有请求均为 1
+        """构建分页参数: 户号,页码,每页数量,1"""
+        # 末尾 "1" 为接口固定参数（抓包确认所有请求均为 1，非 data_type 标识）
         return f"{self.account_no},{page},10,1"
 
     def _make_form(self, data_type: int, page: int = 1) -> dict:
@@ -73,22 +86,21 @@ class ZhangjiajieWaterAPI:
 
     async def _post(self, url: str, form: dict, retries: int = 3) -> dict:
         """POST 请求，带重试"""
-        timeout = aiohttp.ClientTimeout(total=20)
         last_error = None
         for attempt in range(retries):
             try:
-                async with aiohttp.ClientSession(timeout=timeout) as session:
-                    async with session.post(url, data=form, headers=self.headers) as resp:
-                        if resp.status != 200:
-                            text = await resp.text()
-                            raise Exception(f"API 错误 {resp.status}: {text}")
+                session = await self._get_session()
+                async with session.post(url, data=form, headers=self.headers) as resp:
+                    if resp.status != 200:
                         text = await resp.text()
-                        result = json.loads(text)
-                        if result.get("res") != 100:
-                            msg = result.get("msg", "")
-                            detail = f" - {msg}" if msg else ""
-                            raise Exception(f"API 返回错误码 {result.get('res')}{detail}")
-                        return result
+                        raise Exception(f"API 错误 {resp.status}: {text}")
+                    text = await resp.text()
+                    result = json.loads(text)
+                    if result.get("res") != 100:
+                        msg = result.get("msg", "")
+                        detail = f" - {msg}" if msg else ""
+                        raise Exception(f"API 返回错误码 {result.get('res')}{detail}")
+                    return result
             except Exception as e:
                 last_error = e
                 if attempt < retries - 1:
@@ -118,7 +130,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             manufacturer="张家界市自来水有限责任公司",
             name=entry.data.get("account_name", entry.data["account_no"]),
             model="智能水表",
-            sw_version="1.2.0",
+            sw_version=INTEGRATION_VERSION,
         )
 
     async def _async_update_data(self) -> dict:
@@ -142,22 +154,21 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             if not records:
                 break
             all_records.extend(records)
-            last_ym = records[-1].get("ysny", "")
-            if not last_ym or not last_ym.startswith(current_year):
+            first_ym = records[0].get("ysny", "")
+            if not first_ym or not first_ym.startswith(current_year):
                 break
             page += 1
         if not all_records:
             return {}
         latest = all_records[0]
+        first_ym = records[0].get("ysny", "") if records else ""
         raw_month = latest.get("ysny", "")
         # "202604" → "2026年4月"
         formatted_month = f"{raw_month[:4]}年{int(raw_month[4:])}月" if len(raw_month) == 6 and raw_month.isdigit() else raw_month
         raw_reading = latest.get("bybs")
-        # 读数转数值（API返回字符串如 "659"）
-        try:
-            numeric_reading = float(raw_reading) if raw_reading is not None else None
-        except (ValueError, TypeError):
-            numeric_reading = raw_reading
+        numeric_reading = _safe_float(raw_reading, default=None)
+        if numeric_reading is not None and numeric_reading == int(numeric_reading):
+            numeric_reading = int(numeric_reading)
         return {
             "latest_reading_month": formatted_month,
             "latest_reading": numeric_reading,
@@ -187,11 +198,8 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         for rec in usage.get("_usage_records", []):
             ym = rec.get("ysny", "")
             if ym and ym.startswith(current_year):
-                try:
-                    annual += float(rec.get("sl", 0))
-                    annual_bill += float(rec.get("hjfy", 0))
-                except (ValueError, TypeError):
-                    _LOGGER.warning("跳过非法数值记录: %s", rec)
+                annual += _safe_float(rec.get("sl", 0))
+                annual_bill += _safe_float(rec.get("hjfy", 0))
         merged = {
             "balance": payment.get("balance", 0.0),
             "last_payment_date": payment.get("last_payment_date"),
@@ -225,5 +233,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id, None)
+        if coordinator and hasattr(coordinator, "api"):
+            await coordinator.api.async_close()
     return unload_ok

@@ -37,10 +37,6 @@ class ZhangjiajieWaterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional("account_name", default=""): str,
             }),
             errors=errors,
-            description_placeholders={
-                "account_no": "户号（客户编码），账单或发票上可查",
-                "openid": "微信 OpenID，通过 Stream 抓包获取",
-            },
         )
 
     @staticmethod

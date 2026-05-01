@@ -9,8 +9,8 @@ from .const import DOMAIN
 # (name, icon, unit, device_class, state_class)
 BASE_SENSORS = {
     "balance": ("账户余额", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
-    "last_payment_date": ("上次缴费日期", "mdi:calendar", None, None, None),
-    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, None),
+    "last_payment_date": ("上次缴费日期", "mdi:calendar", None, SensorDeviceClass.DATE, None),
+    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
     "current_usage": ("本期用水量", "mdi:water", "m³", None, SensorStateClass.MEASUREMENT),
     "current_bill": ("本期水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
     "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
@@ -47,7 +47,6 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator)
         self._key = key
-        self._base_name = name
         self._attr_icon = icon
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = device_class
@@ -66,10 +65,8 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def name(self) -> str | None:
-        # 有 translation_key 时由翻译文件提供名称，不再手动拼接
-        if self._attr_translation_key:
-            return None
-        return self._base_name
+        # 有 translation_key 时由翻译文件提供名称，name 返回 None
+        return None
 
     @property
     def native_value(self):
