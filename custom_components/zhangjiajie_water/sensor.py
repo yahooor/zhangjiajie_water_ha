@@ -55,9 +55,9 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
         self._attr_device_info = coordinator.device_info
         self._attr_translation_key = key
-        self._attr_translation_placeholders = {
-            "year": self.coordinator.data.get("_year", "")
-        } if key in ("annual_usage", "annual_bill") else None
+        # annual 传感器需要 year 占位符，普通传感器不需要 translation_placeholders
+        if key in ("annual_usage", "annual_bill"):
+            self._attr_translation_placeholders = {"year": self.coordinator.data.get("_year", "")}
 
     @property
     def name(self) -> str | None:
