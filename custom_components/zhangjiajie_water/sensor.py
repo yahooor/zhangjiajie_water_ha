@@ -8,15 +8,15 @@ from .const import DOMAIN
 
 # (name, icon, unit, device_class, state_class)
 BASE_SENSORS = {
-    "balance": ("账户余额", "mdi:cash", "元", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
+    "balance": ("账户余额", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
     "last_payment_date": ("上次缴费日期", "mdi:calendar", None, None, None),
-    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "元", SensorDeviceClass.MONETARY, None),
+    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, None),
     "current_usage": ("本期用水量", "mdi:water", "m³", None, SensorStateClass.MEASUREMENT),
-    "current_bill": ("本期水费", "mdi:currency-cny", "元", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
-    "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.TOTAL_INCREASING),
+    "current_bill": ("本期水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.MEASUREMENT),
+    "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
     "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None),
     "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.TOTAL_INCREASING),
-    "annual_bill": ("年累计水费", "mdi:currency-cny", "元", SensorDeviceClass.MONETARY, SensorStateClass.TOTAL_INCREASING),
+    "annual_bill": ("年累计水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, SensorStateClass.TOTAL_INCREASING),
 }
 
 
@@ -57,11 +57,18 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
         self._attr_translation_key = key
 
     @property
-    def name(self) -> str | None:
-        # 年度传感器名字拼入当前年份
+    def translation_placeholders(self) -> dict[str, str] | None:
+        """年度传感器注入年份占位符"""
         if self._key in ("annual_usage", "annual_bill"):
             year = self.coordinator.data.get("_year", "")
-            return f"{year}{self._base_name}" if year else self._base_name
+            return {"year": year} if year else None
+        return None
+
+    @property
+    def name(self) -> str | None:
+        # 有 translation_key 时由翻译文件提供名称，不再手动拼接
+        if self._attr_translation_key:
+            return None
         return self._base_name
 
     @property

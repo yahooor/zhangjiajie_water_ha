@@ -14,6 +14,14 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["sensor"]
 
 
+def _safe_float(value, default: float = 0.0) -> float:
+    """安全转换 float，非法值返回 default"""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+
 class ZhangjiajieWaterAPI:
     """张家界水务 API 客户端"""
     def __init__(self, account_no: str, openid: str):
@@ -110,7 +118,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             manufacturer="张家界市自来水有限责任公司",
             name=entry.data.get("account_name", entry.data["account_no"]),
             model="智能水表",
-            sw_version="1.0.0",
+            sw_version="1.2.0",
         )
 
     async def _async_update_data(self) -> dict:
@@ -153,8 +161,8 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         return {
             "latest_reading_month": formatted_month,
             "latest_reading": numeric_reading,
-            "current_usage": float(latest.get("sl", 0)),
-            "current_bill": float(latest.get("hjfy", 0)),
+            "current_usage": _safe_float(latest.get("sl"), 0.0),
+            "current_bill": _safe_float(latest.get("hjfy"), 0.0),
             "_usage_records": all_records,
         }
 
@@ -164,11 +172,11 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         if not records:
             return {}
         latest = records[0]
-        bcye = float(latest.get("bcye", 0))
+        bcye = _safe_float(latest.get("bcye"), 0.0)
         return {
             "balance": bcye,
             "last_payment_date": latest.get("sfsj", "")[:10] if latest.get("sfsj") else None,
-            "last_payment_amount": float(latest.get("jfje", 0)),
+            "last_payment_amount": _safe_float(latest.get("jfje"), 0.0),
             "_payment_records": records,
         }
 
@@ -179,8 +187,11 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         for rec in usage.get("_usage_records", []):
             ym = rec.get("ysny", "")
             if ym and ym.startswith(current_year):
-                annual += float(rec.get("sl", 0))
-                annual_bill += float(rec.get("hjfy", 0))
+                try:
+                    annual += float(rec.get("sl", 0))
+                    annual_bill += float(rec.get("hjfy", 0))
+                except (ValueError, TypeError):
+                    _LOGGER.warning("跳过非法数值记录: %s", rec)
         merged = {
             "balance": payment.get("balance", 0.0),
             "last_payment_date": payment.get("last_payment_date"),

@@ -62,10 +62,10 @@
         "name": "抄表月份"
       },
       "annual_usage": {
-        "name": "年累计用水"
+        "name": "{year}年累计用水"
       },
       "annual_bill": {
-        "name": "年累计水费"
+        "name": "{year}年累计水费"
       }
     }
   }
