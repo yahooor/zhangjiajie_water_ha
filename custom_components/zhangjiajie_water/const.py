@@ -2,4 +2,4 @@
 DOMAIN = "zhangjiajie_water"
 BASE_URL = "https://ccpay.thiscc.com"
 API_PATH = "/waterPay/search/searchRecord.action"
-INTEGRATION_VERSION = "1.2.6b"
+INTEGRATION_VERSION = "1.2.6b0"
