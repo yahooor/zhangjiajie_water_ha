@@ -34,6 +34,7 @@ async def async_setup_entry(
 
 class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
     _attr_has_entity_name = True
+    _attr_translation_key: str
 
     def __init__(
         self,
@@ -54,18 +55,13 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
         self._attr_device_info = coordinator.device_info
         self._attr_translation_key = key
-
-    @property
-    def translation_placeholders(self) -> dict[str, str] | None:
-        """年度传感器注入年份占位符"""
-        if self._key in ("annual_usage", "annual_bill"):
-            year = self.coordinator.data.get("_year", "")
-            return {"year": year} if year else None
-        return None
+        self._attr_translation_placeholders = {
+            "year": self.coordinator.data.get("_year", "")
+        } if key in ("annual_usage", "annual_bill") else None
 
     @property
     def name(self) -> str | None:
-        # 有 translation_key 时由翻译文件提供名称，name 返回 None
+        # translation_key 在类级别声明后，HA 自动从翻译文件读取 name，此处返回 None
         return None
 
     @property
