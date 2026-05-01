@@ -83,6 +83,13 @@ type=1&custCode=115062401,1,10,1&wxid=oumDiv6xOpOgDU0IXeV68Nc963IA
 
 ## 更新日志
 
+### v1.2.0 (2026-05-01)
+- **修复**：金额单位 `"元"` → `"CNY"`（ISO 4217 货币码，MONETARY device_class 规范要求）
+- **修复**：latest_reading 改为 `SensorStateClass.MEASUREMENT`（水表读数非累计增量，换表回退不再触发 HA 警告）
+- **修复**：年度传感器年份前缀不显示 → 使用 `translation_placeholders` 注入年份，实体名正确显示如 "2026年累计用水"
+- **修复**：`float()` 未防护非法值 → 新增 `_safe_float()` 函数，API 返回非数字不再导致整次更新失败
+- **优化**：`sw_version` 改为跟踪集成版本号
+
 ### v1.1.0 (2026-05-01)
 - **新增**：Options Flow — 支持在集成选项中调整刷新间隔（1~24小时）
 - **新增**：translations/zh.json — 配置流和选项界面完整中文翻译
