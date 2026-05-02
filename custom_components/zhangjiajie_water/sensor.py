@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import date, datetime
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
