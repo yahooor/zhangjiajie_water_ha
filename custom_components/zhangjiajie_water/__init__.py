@@ -114,6 +114,8 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
     """数据协调器"""
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         update_interval = entry.options.get("update_interval", 6)
+        _LOGGER.info("协调器初始化: 户号=%s, 轮询间隔=%d小时, options=%s",
+                     entry.data.get("account_no"), update_interval, dict(entry.options))
         super().__init__(
             hass,
             _LOGGER,
