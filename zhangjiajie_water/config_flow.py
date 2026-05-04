@@ -57,59 +57,21 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
-            update_interval = user_input.get("update_interval")
-            if update_interval is None:
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=vol.Schema({
-                        vol.Optional("update_interval", default=6): vol.All(
-                            vol.Coerce(int), vol.Range(min=1, max=24)
-                        ),
-                    }),
-                    errors={"update_interval": "invalid_interval"},
-                    description_placeholders={"update_interval": "数据刷新间隔（小时）"},
-                )
-
-            if not isinstance(update_interval, int) or update_interval < 1 or update_interval > 24:
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=vol.Schema({
-                        vol.Optional("update_interval", default=update_interval): vol.All(
-                            vol.Coerce(int), vol.Range(min=1, max=24)
-                        ),
-                    }),
-                    errors={"update_interval": "invalid_interval"},
-                    description_placeholders={"update_interval": "数据刷新间隔（小时）"},
-                )
-
-            # ★★★ 关键修复 v2.2.5 ★★★
-            # 1. async_update_entry 只更新内存，async_save() 才持久化到磁盘
-            # 2. 持久化后再触发 reload，确保 Coordinator 用新 interval 启动
-            new_options = dict(self._config_entry.options)
-            new_options["update_interval"] = update_interval
-            self.hass.config_entries.async_update_entry(
-                self._config_entry,
-                options=new_options
+            # vol.Range 已在 schema 层验证 1~24，无需手动校验
+            _LOGGER.info(
+                "[OptionsFlow] 保存: update_interval=%d", user_input["update_interval"]
             )
-            # ★ 必须显式调用 async_save()，否则选项只存在内存，HA 重启后丢失
-            await self.hass.config_entries.async_save()
-            _LOGGER.warning(
-                "[OptionsFlow] 保存成功: update_interval=%d, 新options=%s, 已持久化, 触发reload",
-                update_interval, new_options
+            return self.async_create_entry(
+                title="", data={"update_interval": user_input["update_interval"]}
             )
-            # 触发 reload，Coordinator 会用新的 update_interval 重建
-            self.hass.config_entries.async_schedule_reload(self._config_entry.entry_id)
-            # 完成 OptionsFlow（不传 data，因为 options 已通过 async_update_entry 更新）
-            return self.async_create_entry(title="", data={})
 
         current = self._config_entry.options.get("update_interval", 6)
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Optional("update_interval", default=current): vol.All(
+                vol.Required("update_interval", default=current): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=24)
                 ),
             }),
-            errors={},
             description_placeholders={"update_interval": f"数据刷新间隔（小时），当前: {current} 小时"},
         )

@@ -34,9 +34,11 @@ class ZhangjiajieWaterAPI:
         self.base_url = BASE_URL
         self.api_path = API_PATH
         self._session: aiohttp.ClientSession | None = None
+        self._closed = False
 
     async def async_close(self) -> None:
         """关闭 HTTP session"""
+        self._closed = True
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
@@ -90,27 +92,35 @@ class ZhangjiajieWaterAPI:
 
     async def _post(self, url: str, form: dict, retries: int = 3) -> dict:
         """POST 请求，带重试"""
+        if self._closed:
+            raise Exception("API 客户端已关闭")
         last_error = None
         for attempt in range(retries):
+            non_retryable = False
             try:
                 session = await self._get_session()
                 async with session.post(url, data=form, headers=self.headers) as resp:
-                    if resp.status != 200:
-                        text = await resp.text()
-                        raise Exception(f"API 错误 {resp.status}: {text}")
                     text = await resp.text()
+                    if resp.status != 200:
+                        raise Exception(f"API HTTP {resp.status}: {text[:200]}")
+                try:
                     result = json.loads(text)
-                    if result.get("res") != 100:
-                        msg = result.get("msg", "")
-                        detail = f" - {msg}" if msg else ""
-                        raise Exception(f"API 返回错误码 {result.get('res')}{detail}")
-                    return result
+                except (json.JSONDecodeError, ValueError):
+                    # 非 JSON 响应（如 502 网关错误页面），重试无意义
+                    non_retryable = True
+                    raise Exception(f"API 返回非 JSON 响应: {text[:200]}")
+                if result.get("res") != 100:
+                    msg = result.get("msg", "")
+                    detail = f" - {msg}" if msg else ""
+                    raise Exception(f"API 返回错误码 {result.get('res')}{detail}")
+                return result
             except Exception as e:
                 last_error = e
-                if attempt < retries - 1:
-                    wait = 2 ** attempt
-                    _LOGGER.warning("API 请求失败 (第 %d/%d 次)，%d 秒后重试: %s", attempt + 1, retries, wait, e)
-                    await asyncio.sleep(wait)
+                if non_retryable or attempt >= retries - 1:
+                    raise
+                wait = 2 ** attempt
+                _LOGGER.warning("API 请求失败 (第 %d/%d 次)，%d 秒后重试: %s", attempt + 1, retries, wait, e)
+                await asyncio.sleep(wait)
         raise last_error
 
 
@@ -118,7 +128,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
     """数据协调器"""
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         update_interval = entry.options.get("update_interval", 6)
-        _LOGGER.warning("[Coordinator] 初始化: 户号=%s, 轮询间隔=%d小时, options=%s, data=%s",
+        _LOGGER.info("[Coordinator] 初始化: 户号=%s, 轮询间隔=%d小时, options=%s, data=%s",
                      entry.data.get("account_no"), update_interval, dict(entry.options), dict(entry.data))
         super().__init__(
             hass,
@@ -151,7 +161,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             raise
 
     async def _fetch_usage(self) -> dict:
-        """获取用水月报，拉取全部页面直到跨出当年"""
+        """获取用水月报，逐条过滤本年记录"""
         current_year = str(datetime.now().year)
         all_records = []
         page = 1
@@ -159,13 +169,13 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             records = await self.api.fetch_usage_records(page=page)
             if not records:
                 break
-            # Bug-2 修复：先检查本页首条年月是否为本年，不为本年则不再获取更多页
-            first_ym = records[0].get("ysny", "")
-            if not first_ym or not first_ym.startswith(current_year):
-                # 本页已全是跨年或无效数据，不再添加，直接停止
+            # 逐条过滤，只保留本年记录（一页可能跨年）
+            year_records = [r for r in records if r.get("ysny", "").startswith(current_year)]
+            all_records.extend(year_records)
+            # 本页最旧记录已跨年，后续页更旧，停止翻页
+            last_ym = records[-1].get("ysny", "")
+            if not last_ym or not last_ym.startswith(current_year):
                 break
-            # 本页确认属于本年，才加入
-            all_records.extend(records)
             page += 1
         if not all_records:
             return {}
@@ -240,6 +250,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
                 annual += _safe_float(rec.get("sl", 0))
                 annual_bill += _safe_float(rec.get("hjfy", 0))
         merged = {
+            "customer_code": self.entry.data.get("account_no", ""),
             "balance": payment.get("balance", 0.0),
             "previous_balance": payment.get("previous_balance", 0.0),
             "invoice_code": payment.get("invoice_code", ""),
