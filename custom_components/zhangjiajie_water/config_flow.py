@@ -57,40 +57,12 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
-            update_interval = user_input.get("update_interval")
-            if update_interval is None:
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=vol.Schema({
-                        vol.Optional("update_interval", default=6): vol.All(
-                            vol.Coerce(int), vol.Range(min=1, max=24)
-                        ),
-                    }),
-                    errors={"update_interval": "invalid_interval"},
-                    description_placeholders={"update_interval": "数据刷新间隔（小时）"},
-                )
-
-            if not isinstance(update_interval, int) or update_interval < 1 or update_interval > 24:
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=vol.Schema({
-                        vol.Optional("update_interval", default=update_interval): vol.All(
-                            vol.Coerce(int), vol.Range(min=1, max=24)
-                        ),
-                    }),
-                    errors={"update_interval": "invalid_interval"},
-                    description_placeholders={"update_interval": "数据刷新间隔（小时）"},
-                )
-
-            # 标准 HA OptionsFlow 模式：
-            # async_create_entry(data=...) 会自动：
-            # 1. 更新 entry.options 并持久化到磁盘
-            # 2. 触发 _async_update_listener → async_reload
-            _LOGGER.warning(
-                "[OptionsFlow] 保存: update_interval=%d", update_interval
+            # vol.Range 已在 schema 层验证 1~24，无需手动校验
+            _LOGGER.info(
+                "[OptionsFlow] 保存: update_interval=%d", user_input["update_interval"]
             )
             return self.async_create_entry(
-                title="", data={"update_interval": update_interval}
+                title="", data={"update_interval": user_input["update_interval"]}
             )
 
         current = self._config_entry.options.get("update_interval", 6)
@@ -101,6 +73,5 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
                     vol.Coerce(int), vol.Range(min=1, max=24)
                 ),
             }),
-            errors={},
             description_placeholders={"update_interval": f"数据刷新间隔（小时），当前: {current} 小时"},
         )

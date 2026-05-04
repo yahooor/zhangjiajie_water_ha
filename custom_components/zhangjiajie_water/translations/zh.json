@@ -80,10 +80,10 @@
         "name": "垃圾处理费"
       },
       "current_month_reading": {
-        "name": "本月表数"
+        "name": "最新抄表读数"
       },
       "previous_month_reading": {
-        "name": "上月表数"
+        "name": "最新抄表上期读数"
       },
       "latest_reading": {
         "name": "最新读数"

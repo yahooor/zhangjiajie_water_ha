@@ -22,8 +22,8 @@ BASE_SENSORS = {
     "other_fees": ("其他费用", "mdi:receipt-text-outline", "CNY", SensorDeviceClass.MONETARY, None),
     "sewage_fee": ("污水处理费", "mdi:water-pump", "CNY", SensorDeviceClass.MONETARY, None),
     "garbage_fee": ("垃圾处理费", "mdi:trash-can-outline", "CNY", SensorDeviceClass.MONETARY, None),
-    "current_month_reading": ("本月表数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
-    "previous_month_reading": ("上月表数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
+    "current_month_reading": ("最新抄表读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
+    "previous_month_reading": ("最新抄表上期读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
     "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
     "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None),
     "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.TOTAL_INCREASING),
@@ -72,9 +72,6 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         value = self.coordinator.data.get(self._key)
-        # customer_code 特殊处理：从 entry.data 取
-        if self._key == "customer_code":
-            return self.coordinator.entry.data.get("account_no")
         if value is None:
             return None
         # DATE device_class: must return date object
