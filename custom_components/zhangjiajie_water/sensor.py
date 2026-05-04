@@ -9,25 +9,25 @@ from .const import DOMAIN
 
 # (name, icon, unit, device_class, state_class)
 BASE_SENSORS = {
-    "balance": ("è´¦æ·ä½é¢", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, None),
-    "last_payment_date": ("ä¸æ¬¡ç¼´è´¹æ¥æ", "mdi:calendar", None, SensorDeviceClass.DATE, None),
-    "last_payment_time": ("ä¸æ¬¡ç¼´è´¹æ¶é´", "mdi:clock-outline", None, SensorDeviceClass.TIMESTAMP, None),
-    "last_payment_amount": ("ä¸æ¬¡ç¼´è´¹éé¢", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, None),
-    "previous_balance": ("ä¸æ¬¡ç»ä½", "mdi:cash-minus", "CNY", SensorDeviceClass.MONETARY, None),
-    "invoice_code": ("åç¥¨ç¼ç ", "mdi:receipt-text", None, None, None),
-    "customer_code": ("å®¢æ·ç¼ç ", "mdi:identifier", None, None, None),
-    "current_usage": ("æ¬æç¨æ°´é", "mdi:water", "mÂ³", None, SensorStateClass.MEASUREMENT),
-    "current_bill": ("æ¬æè´¹ç¨åè®¡", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
-    "current_water_fee": ("æ¬ææ°´è´¹", "mdi:water-outline", "CNY", SensorDeviceClass.MONETARY, None),
-    "other_fees": ("å¶ä»è´¹ç¨", "mdi:receipt-text-outline", "CNY", SensorDeviceClass.MONETARY, None),
-    "sewage_fee": ("æ±¡æ°´å¤çè´¹", "mdi:water-pump", "CNY", SensorDeviceClass.MONETARY, None),
-    "garbage_fee": ("åå¾å¤çè´¹", "mdi:trash-can-outline", "CNY", SensorDeviceClass.MONETARY, None),
-    "current_month_reading": ("ææ°æè¡¨è¯»æ°", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
-    "previous_month_reading": ("ææ°æè¡¨ä¸æè¯»æ°", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
-    "latest_reading": ("ææ°è¯»æ°", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
-    "latest_reading_month": ("æè¡¨æä»½", "mdi:calendar-month", None, None, None),
-    "annual_usage": ("å¹´ç´¯è®¡ç¨æ°´", "mdi:chart-bar", "mÂ³", None, SensorStateClass.TOTAL_INCREASING),
-    "annual_bill": ("å¹´ç´¯è®¡æ°´è´¹", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
+    "balance": ("账户余额", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, None),
+    "last_payment_date": ("上次缴费日期", "mdi:calendar", None, SensorDeviceClass.DATE, None),
+    "last_payment_time": ("上次缴费时间", "mdi:clock-outline", None, SensorDeviceClass.TIMESTAMP, None),
+    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, None),
+    "previous_balance": ("上次结余", "mdi:cash-minus", "CNY", SensorDeviceClass.MONETARY, None),
+    "invoice_code": ("发票编码", "mdi:receipt-text", None, None, None),
+    "customer_code": ("客户编码", "mdi:identifier", None, None, None),
+    "current_usage": ("本期用水量", "mdi:water", "m³", None, SensorStateClass.MEASUREMENT),
+    "current_bill": ("本期费用合计", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
+    "current_water_fee": ("本月水费", "mdi:water-outline", "CNY", SensorDeviceClass.MONETARY, None),
+    "other_fees": ("其他费用", "mdi:receipt-text-outline", "CNY", SensorDeviceClass.MONETARY, None),
+    "sewage_fee": ("污水处理费", "mdi:water-pump", "CNY", SensorDeviceClass.MONETARY, None),
+    "garbage_fee": ("垃圾处理费", "mdi:trash-can-outline", "CNY", SensorDeviceClass.MONETARY, None),
+    "current_month_reading": ("最新抄表读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
+    "previous_month_reading": ("最新抄表上期读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
+    "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
+    "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None),
+    "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.TOTAL_INCREASING),
+    "annual_bill": ("年累计水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
 }
 
 
@@ -63,11 +63,11 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
         self._attr_state_class = state_class
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
         self._attr_device_info = coordinator.device_info
-        # å¹´åº¦ä¼ æå¨åç§°æ³¨å¥å½åå¹´ä»½ï¼coordinator.data å¨ add_entities æ¶å·²å¡«åï¼
+        # 年度传感器名称注入当前年份（coordinator.data 在 add_entities 时已填充）
         if key in ("annual_usage", "annual_bill") and coordinator.data:
             year = coordinator.data.get("_year", "")
             if year:
-                self._attr_name = f"{year}å¹´{name}"
+                self._attr_name = f"{year}年{name}"
 
     @property
     def native_value(self):

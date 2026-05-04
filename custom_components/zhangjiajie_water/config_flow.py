@@ -57,9 +57,9 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
-            # vol.Range å·²å¨ schema å±éªè¯ 1~24ï¼æ éæå¨æ ¡éª
+            # vol.Range 已在 schema 层验证 1~24，无需手动校验
             _LOGGER.info(
-                "[OptionsFlow] ä¿å­: update_interval=%d", user_input["update_interval"]
+                "[OptionsFlow] 保存: update_interval=%d", user_input["update_interval"]
             )
             return self.async_create_entry(
                 title="", data={"update_interval": user_input["update_interval"]}
