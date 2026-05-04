@@ -1,26 +1,27 @@
 {
-  "config": {
-    "step": {
-      "user": {
-        "title": "Zhangjiajie Water",
-        "description": "Configure your Zhangjiajie Water Supply account",
-        "data": {
-          "account_no": "Account Number",
-          "openid": "WeChat OpenID",
-          "account_name": "Account Name (optional)"
-        },
-        "data_description": {
-          "account_no": "Customer number found on your water bill",
-          "openid": "WeChat OpenID obtained from packet capture"
-        }
+  "title": "Zhangjiajie Water",
+  "step": {
+    "user": {
+      "title": "Zhangjiajie Water",
+      "description": "Configure your Zhangjiajie Water Supply account",
+      "data": {
+        "account_no": "Account Number",
+        "openid": "WeChat OpenID",
+        "account_name": "Account Name (optional)"
+      },
+      "data_description": {
+        "account_no": "Customer number found on your water bill",
+        "openid": "WeChat OpenID obtained from Stream packet capture"
       }
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "This account is already configured"
     },
     "error": {
       "invalid_account": "Invalid account number format",
       "invalid_openid": "Invalid OpenID format"
-    },
-    "abort": {
-      "already_configured": "This account is already configured"
     }
   },
   "options": {
@@ -34,67 +35,6 @@
         "data_description": {
           "update_interval": "Data update frequency, 1-24 hours"
         }
-      }
-    }
-  },
-  "entity": {
-    "sensor": {
-      "balance": {
-        "name": "Account Balance"
-      },
-      "last_payment_date": {
-        "name": "Last Payment Date"
-      },
-      "last_payment_time": {
-        "name": "Last Payment Time"
-      },
-      "last_payment_amount": {
-        "name": "Last Payment Amount"
-      },
-      "previous_balance": {
-        "name": "Previous Balance"
-      },
-      "invoice_code": {
-        "name": "Invoice Code"
-      },
-      "customer_code": {
-        "name": "Customer Code"
-      },
-      "current_usage": {
-        "name": "Current Usage"
-      },
-      "current_bill": {
-        "name": "Current Bill"
-      },
-      "current_water_fee": {
-        "name": "Water Fee"
-      },
-      "other_fees": {
-        "name": "Other Fees"
-      },
-      "sewage_fee": {
-        "name": "Sewage Fee"
-      },
-      "garbage_fee": {
-        "name": "Garbage Fee"
-      },
-      "current_month_reading": {
-        "name": "Latest Meter Reading"
-      },
-      "previous_month_reading": {
-        "name": "Previous Meter Reading"
-      },
-      "latest_reading": {
-        "name": "Latest Reading"
-      },
-      "latest_reading_month": {
-        "name": "Reading Month"
-      },
-      "annual_usage": {
-        "name": "{year} Annual Usage"
-      },
-      "annual_bill": {
-        "name": "{year} Annual Bill"
       }
     }
   }
