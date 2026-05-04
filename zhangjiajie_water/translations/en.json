@@ -1,39 +1,31 @@
 {
-  "title": "Zhangjiajie Water",
-  "step": {
-    "user": {
-      "title": "Zhangjiajie Water",
-      "description": "Configure your Zhangjiajie Water Supply account",
-      "data": {
-        "account_no": "Account Number",
-        "openid": "WeChat OpenID",
-        "account_name": "Account Name (optional)"
-      },
-      "data_description": {
-        "account_no": "Customer number found on your water bill",
-        "openid": "WeChat OpenID obtained from Stream packet capture"
-      }
-    }
-  },
   "config": {
-    "abort": {
-      "already_configured": "This account is already configured"
+    "step": {
+      "user": {
+        "title": "Zhangjiajie Water",
+        "description": "Configure your Zhangjiajie Water Supply account",
+        "data": {
+          "account_no": "Account Number",
+          "openid": "WeChat OpenID",
+          "account_name": "Account Name (optional)"
+        }
+      }
     },
     "error": {
       "invalid_account": "Invalid account number format",
       "invalid_openid": "Invalid OpenID format"
+    },
+    "abort": {
+      "already_configured": "This account is already configured"
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Zhangjiajie Water Options",
-        "description": "Adjust data refresh interval",
+        "description": "Adjust data refresh interval (current value: {update_interval} hours)",
         "data": {
           "update_interval": "Refresh interval (hours)"
-        },
-        "data_description": {
-          "update_interval": "Data update frequency, 1-24 hours"
         }
       }
     }

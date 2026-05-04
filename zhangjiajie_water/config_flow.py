@@ -73,5 +73,5 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
                     vol.Coerce(int), vol.Range(min=1, max=24)
                 ),
             }),
-            description_placeholders={"update_interval": f"数据刷新间隔（小时），当前: {current} 小时"},
+            description_placeholders={"update_interval": str(current)},
         )
