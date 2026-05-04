@@ -222,10 +222,19 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = ZhangjiajieWaterCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
+
+    # 首次刷新：如果失败，打印错误但继续（不让初始化彻底失败）
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as err:
+        _LOGGER.warning("首次数据刷新失败，协程将在下次轮询时重试: %s", err)
+
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    # 正确清理：保存 undo 回调，卸载时调用它防止监听器泄漏
+    unload_listener = entry.add_update_listener(_async_update_listener)
+    entry.async_on_unload(unload_listener)
     return True
 
 

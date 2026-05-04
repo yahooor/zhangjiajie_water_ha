@@ -57,7 +57,13 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            update_interval = user_input.get("update_interval", 6)
+            if not isinstance(update_interval, int) or update_interval < 1 or update_interval > 24:
+                errors = {"update_interval": "invalid_interval"}
+            else:
+                return self.async_create_entry(title="", data={"update_interval": update_interval})
+        else:
+            errors = {}
 
         update_interval = self._config_entry.options.get("update_interval", 6)
         return self.async_show_form(
@@ -67,9 +73,8 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
                     vol.Coerce(int), vol.Range(min=1, max=24)
                 ),
             }),
-            description_placeholders={
-                "update_interval": "数据刷新间隔（小时）",
-            },
+            errors=errors,
+            description_placeholders={"update_interval": "数据刷新间隔（小时）"},
         )
 
 
