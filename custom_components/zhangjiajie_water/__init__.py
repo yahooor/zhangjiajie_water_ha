@@ -1,7 +1,8 @@
 from __future__ import annotations
 import json
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
+from zoneinfo import ZoneInfo
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -12,6 +13,9 @@ import asyncio
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["sensor"]
+
+
+_TZ_SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -209,11 +213,11 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
                 stripped = raw_sfsj.strip()
                 if len(stripped) > 16:
                     # 带秒/毫秒: "2026-05-03 07:51:14" 或 "2026-05-03 07:51:14.0"
-                    payment_datetime = datetime.strptime(stripped[:19], "%Y-%m-%d %H:%M:%S")
+                    payment_datetime = datetime.strptime(stripped[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=_TZ_SHANGHAI)
                 elif len(stripped) > 10:
-                    payment_datetime = datetime.strptime(stripped, "%Y-%m-%d %H:%M")
+                    payment_datetime = datetime.strptime(stripped, "%Y-%m-%d %H:%M").replace(tzinfo=_TZ_SHANGHAI)
                 else:
-                    payment_datetime = datetime.strptime(stripped, "%Y-%m-%d")
+                    payment_datetime = datetime.strptime(stripped, "%Y-%m-%d").replace(tzinfo=_TZ_SHANGHAI)
             except ValueError:
                 _LOGGER.warning("交费时间格式无法解析: %s", raw_sfsj)
         return {
