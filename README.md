@@ -197,6 +197,11 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 - 字符串解析失败时返回 `None`
 - MONETARY 传感器 `state_class` 设为 `None`
 
+### v2.3.11 (2026-05-05)
+- **brand 图片编码修复**：`brand/*.png` 4 个文件因 GitHub blob 上传时使用 `encoding: utf-8` 导致二进制图片数据损坏，GitHub 在线查看显示乱码。本版本已通过 base64 编码重新上传
+- **仓库文件恢复**：由于操作失误导致仓库只剩 brand 目录，本版本重建完整文件树（19 个文件）
+- **版本号修复**：`manifest.json` 从 2.3.8 更新到 2.3.11
+
 ### v2.3.10 (2026-05-05)
 - **Python 文件 UTF-8 编码全面修复**：重新上传 `__init__.py`、`sensor.py`、`config_flow.py`，通过 base64 编码避免 UTF-8 双编码问题
 - **版本号修复**：`manifest.json` 更新到 2.3.8
