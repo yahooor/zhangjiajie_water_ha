@@ -197,6 +197,10 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 - 字符串解析失败时返回 `None`
 - MONETARY 传感器 `state_class` 设为 `None`
 
+### v2.3.10 (2026-05-05)
+- **Python 文件 UTF-8 编码全面修复**：重新上传 `__init__.py`、`sensor.py`、`config_flow.py`，通过 base64 编码避免 UTF-8 双编码问题
+- **版本号修复**：`manifest.json` 更新到 2.3.8
+
 ### v1.2.4 (2026-05-01)
 - 添加 brand/ 品牌图标（dark_icon、dark_logo、icon、logo）
 
