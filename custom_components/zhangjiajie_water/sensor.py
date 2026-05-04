@@ -11,9 +11,19 @@ from .const import DOMAIN
 BASE_SENSORS = {
     "balance": ("账户余额", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, None),
     "last_payment_date": ("上次缴费日期", "mdi:calendar", None, SensorDeviceClass.DATE, None),
+    "last_payment_time": ("上次缴费时间", "mdi:clock-outline", None, SensorDeviceClass.TIMESTAMP, None),
     "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, None),
+    "previous_balance": ("上次结余", "mdi:cash-minus", "CNY", SensorDeviceClass.MONETARY, None),
+    "invoice_code": ("发票编码", "mdi:receipt-text", None, None, None),
+    "customer_code": ("客户编码", "mdi:identifier", None, None, None),
     "current_usage": ("本期用水量", "mdi:water", "m³", None, SensorStateClass.MEASUREMENT),
-    "current_bill": ("本期水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
+    "current_bill": ("本期费用合计", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
+    "current_water_fee": ("本月水费", "mdi:water-outline", "CNY", SensorDeviceClass.MONETARY, None),
+    "other_fees": ("其他费用", "mdi:receipt-text-outline", "CNY", SensorDeviceClass.MONETARY, None),
+    "sewage_fee": ("污水处理费", "mdi:water-pump", "CNY", SensorDeviceClass.MONETARY, None),
+    "garbage_fee": ("垃圾处理费", "mdi:trash-can-outline", "CNY", SensorDeviceClass.MONETARY, None),
+    "current_month_reading": ("本月表数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
+    "previous_month_reading": ("上月表数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
     "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
     "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None),
     "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.TOTAL_INCREASING),
@@ -62,18 +72,26 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         value = self.coordinator.data.get(self._key)
+        # customer_code 特殊处理：从 entry.data 取
+        if self._key == "customer_code":
+            return self.coordinator.entry.data.get("account_no")
         if value is None:
             return None
-        # DATE device_class: must return date object, not string
+        # DATE device_class: must return date object
         if self._key == "last_payment_date":
             if isinstance(value, date):
                 return value
-            if isinstance(value, str) and len(value) == 10:
+            if isinstance(value, str) and len(value) >= 10:
                 try:
-                    return datetime.strptime(value, "%Y-%m-%d").date()
+                    return datetime.strptime(value[:10], "%Y-%m-%d").date()
                 except ValueError:
                     pass
-            return None  # return None instead of string to avoid HA error
+            return None
+        # TIMESTAMP device_class: must return datetime object
+        if self._key == "last_payment_time":
+            if isinstance(value, datetime):
+                return value
+            return None
         # MONETARY: round floats
         if isinstance(value, (int, float)) and self._attr_device_class == SensorDeviceClass.MONETARY:
             return round(float(value), 2)

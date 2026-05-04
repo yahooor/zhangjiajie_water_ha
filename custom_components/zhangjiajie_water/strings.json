@@ -46,14 +46,44 @@
       "last_payment_date": {
         "name": "上次缴费日期"
       },
+      "last_payment_time": {
+        "name": "上次缴费时间"
+      },
       "last_payment_amount": {
         "name": "上次缴费金额"
+      },
+      "previous_balance": {
+        "name": "上次结余"
+      },
+      "invoice_code": {
+        "name": "发票编码"
+      },
+      "customer_code": {
+        "name": "客户编码"
       },
       "current_usage": {
         "name": "本期用水量"
       },
       "current_bill": {
-        "name": "本期水费"
+        "name": "本期费用合计"
+      },
+      "current_water_fee": {
+        "name": "本月水费"
+      },
+      "other_fees": {
+        "name": "其他费用"
+      },
+      "sewage_fee": {
+        "name": "污水处理费"
+      },
+      "garbage_fee": {
+        "name": "垃圾处理费"
+      },
+      "current_month_reading": {
+        "name": "本月表数"
+      },
+      "previous_month_reading": {
+        "name": "上月表数"
       },
       "latest_reading": {
         "name": "最新读数"

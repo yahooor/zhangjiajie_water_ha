@@ -57,23 +57,46 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 传感器
 
+### 缴费信息
+
 | 传感器 | 单位 | 说明 |
 |--------|-----|------|
 | balance | ¥ | 账户余额（最近一次缴费后余额） |
 | last_payment_date | - | 最近缴费日期 |
+| last_payment_time | - | 最近缴费时间 |
 | last_payment_amount | ¥ | 最近缴费金额 |
+| previous_balance | ¥ | 上次结余 |
+| invoice_code | - | 发票编码 |
+| customer_code | - | 客户编码（户号） |
+
+### 用水信息
+
+| 传感器 | 单位 | 说明 |
+|--------|-----|------|
 | current_usage | m³ | 本期用水量 |
-| current_bill | ¥ | 本期水费 |
+| current_bill | ¥ | 本期费用合计 |
+| current_water_fee | ¥ | 本月水费 |
+| other_fees | ¥ | 其他费用 |
+| sewage_fee | ¥ | 污水处理费 |
+| garbage_fee | ¥ | 垃圾处理费 |
+| current_month_reading | - | 本月表数 |
+| previous_month_reading | - | 上月表数 |
 | latest_reading | - | 最新抄表读数 |
 | latest_reading_month | - | 抄表月份 |
+
+### 年度统计
+
+| 传感器 | 单位 | 说明 |
+|--------|-----|------|
 | annual_usage | m³ | 年累计用水量 |
 | annual_bill | ¥ | 年累计水费 |
 
 ## 数据说明
 
 - **余额**：为最近一次缴费后的余额快照，非实时余额
-- **水费构成**：含水费、污水处理费、垃圾处理费等
-- **更新间隔**：默认 6 小时，可在集成选项中修改
+- **费用构成**：current_bill 为合计（含水费 + 污水处理费 + 垃圾处理费 + 其他费用），可对照各分项传感器
+- **表数**：current_month_reading / previous_month_reading 为当月和上月抄表读数，差值即为用水量
+- **更新间隔**：默认 6 小时，可在集成选项中修改（1~24小时）
 
 ## 注意事项
 
@@ -82,6 +105,17 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 - 数据来自供水公司微信公众号接口，仅供个人使用
 
 ## 更新日志
+
+### v2.2.0 (2026-05-04)
+- **新增 10 个传感器**：上次缴费时间、上次结余、发票编码、客户编码、本月表数、上月表数、本月水费、其他费用、污水处理费、垃圾处理费
+- **改名**：current_bill "本期水费" → "本期费用合计"（更准确反映包含所有费用的合计值）
+- **修复**：last_payment_date 字符串长度判断 `==10` → `>=10`，避免带时间的字符串解析失败
+- 传感器总数：9 → 19
+
+### v2.1.3 (2026-05-04)
+- **修复**：add_update_listener 返回的取消回调未保存，每次 reload 累积监听器泄漏
+- **修复**：Options Flow 缺少错误处理，用户保存失败无反馈
+- **修复**：async_config_entry_first_refresh 异常静默，导致协程进入失败状态
 
 ### v2.0.2 (2026-05-02)
 - **实体名称不显示**：之前通过 `translation_key` + `has_entity_name` 方式设置实体名称，但 translation 系统加载失败时会导致实体名称变成设备名（如「李静天下二期」）。改为直接在代码中设置实体名称，更加可靠。

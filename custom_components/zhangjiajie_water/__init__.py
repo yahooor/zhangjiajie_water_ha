@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -173,11 +173,21 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         numeric_reading = _safe_float(raw_reading, default=None)
         if numeric_reading is not None and numeric_reading == int(numeric_reading):
             numeric_reading = int(numeric_reading)
+        raw_prev_reading = latest.get("sybs")
+        prev_reading = _safe_float(raw_prev_reading, default=None)
+        if prev_reading is not None and prev_reading == int(prev_reading):
+            prev_reading = int(prev_reading)
         return {
             "latest_reading_month": formatted_month,
             "latest_reading": numeric_reading,
+            "current_month_reading": numeric_reading,
+            "previous_month_reading": prev_reading,
             "current_usage": _safe_float(latest.get("sl"), 0.0),
             "current_bill": _safe_float(latest.get("hjfy"), 0.0),
+            "current_water_fee": _safe_float(latest.get("sf"), 0.0),
+            "other_fees": _safe_float(latest.get("qtxm"), 0.0),
+            "sewage_fee": _safe_float(latest.get("wsclf"), 0.0),
+            "garbage_fee": _safe_float(latest.get("ljclf"), 0.0),
             "_usage_records": all_records,
         }
 
@@ -188,9 +198,26 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             return {}
         latest = records[0]
         bcye = _safe_float(latest.get("bcye"), 0.0)
+        scye = _safe_float(latest.get("scye"), 0.0)
+        # 解析交费时间（API返回格式 "2026-04-06 15:30" 或 "2026-04-06"）
+        raw_sfsj = latest.get("sfsj", "")
+        payment_date = None
+        payment_datetime = None
+        if raw_sfsj:
+            payment_date = raw_sfsj[:10]
+            try:
+                if len(raw_sfsj) > 10:
+                    payment_datetime = datetime.strptime(raw_sfsj.strip(), "%Y-%m-%d %H:%M")
+                else:
+                    payment_datetime = datetime.strptime(raw_sfsj.strip(), "%Y-%m-%d")
+            except ValueError:
+                _LOGGER.warning("交费时间格式无法解析: %s", raw_sfsj)
         return {
             "balance": bcye,
-            "last_payment_date": latest.get("sfsj", "")[:10] if latest.get("sfsj") else None,
+            "previous_balance": scye,
+            "invoice_code": latest.get("kphm", ""),
+            "last_payment_date": payment_date,
+            "last_payment_time": payment_datetime,
             "last_payment_amount": _safe_float(latest.get("jfje"), 0.0),
             "_payment_records": records,
         }
@@ -206,12 +233,21 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
                 annual_bill += _safe_float(rec.get("hjfy", 0))
         merged = {
             "balance": payment.get("balance", 0.0),
+            "previous_balance": payment.get("previous_balance", 0.0),
+            "invoice_code": payment.get("invoice_code", ""),
             "last_payment_date": payment.get("last_payment_date"),
+            "last_payment_time": payment.get("last_payment_time"),
             "last_payment_amount": payment.get("last_payment_amount", 0.0),
             "current_usage": usage.get("current_usage", 0.0),
             "current_bill": usage.get("current_bill", 0.0),
+            "current_water_fee": usage.get("current_water_fee", 0.0),
+            "other_fees": usage.get("other_fees", 0.0),
+            "sewage_fee": usage.get("sewage_fee", 0.0),
+            "garbage_fee": usage.get("garbage_fee", 0.0),
             "latest_reading": usage.get("latest_reading"),
             "latest_reading_month": usage.get("latest_reading_month"),
+            "current_month_reading": usage.get("current_month_reading"),
+            "previous_month_reading": usage.get("previous_month_reading"),
             "annual_usage": round(annual, 2),
             "annual_bill": round(annual_bill, 2),
             "_year": current_year,  # 供 sensor 层读取当前年份
