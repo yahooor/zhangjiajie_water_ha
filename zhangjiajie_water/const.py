@@ -1,5 +1,0 @@
-"""Constants for Zhangjiajie Water integration."""
-DOMAIN = "zhangjiajie_water"
-BASE_URL = "https://ccpay.thiscc.com"
-API_PATH = "/waterPay/search/searchRecord.action"
-INTEGRATION_VERSION = "2.3.5"
