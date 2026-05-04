@@ -19,7 +19,7 @@ _TZ_SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
 def _safe_float(value, default: float = 0.0) -> float:
-    """安全转换 float，非法值返回 default"""
+    """å®å¨è½¬æ¢ floatï¼éæ³å¼è¿å default"""
     try:
         return float(value)
     except (ValueError, TypeError):
@@ -27,7 +27,7 @@ def _safe_float(value, default: float = 0.0) -> float:
 
 
 class ZhangjiajieWaterAPI:
-    """张家界水务 API 客户端"""
+    """å¼ å®¶çæ°´å¡ API å®¢æ·ç«¯"""
     def __init__(self, account_no: str, openid: str):
         self.account_no = account_no
         self.openid = openid
@@ -37,25 +37,25 @@ class ZhangjiajieWaterAPI:
         self._closed = False
 
     async def async_close(self) -> None:
-        """关闭 HTTP session"""
+        """å³é­ HTTP session"""
         self._closed = True
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """获取或创建复用的 ClientSession"""
+        """è·åæåå»ºå¤ç¨ç ClientSession"""
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))
         return self._session
 
     def _make_custcode(self, page: int) -> str:
-        """构建分页参数: 户号,页码,每页数量,1"""
-        # 末尾 "1" 为接口固定参数（抓包确认所有请求均为 1，非 data_type 标识）
+        """æå»ºåé¡µåæ°: æ·å·,é¡µç ,æ¯é¡µæ°é,1"""
+        # æ«å°¾ "1" ä¸ºæ¥å£åºå®åæ°ï¼æåç¡®è®¤ææè¯·æ±åä¸º 1ï¼é data_type æ è¯ï¼
         return f"{self.account_no},{page},10,1"
 
     def _make_form(self, data_type: int, page: int = 1) -> dict:
-        """构建 form data"""
+        """æå»º form data"""
         return {
             "type": str(data_type),
             "custCode": self._make_custcode(page),
@@ -77,23 +77,23 @@ class ZhangjiajieWaterAPI:
         }
 
     async def fetch_usage_records(self, page: int = 1) -> list:
-        """获取 type=1 用水记录（分页）"""
+        """è·å type=1 ç¨æ°´è®°å½ï¼åé¡µï¼"""
         url = f"{self.base_url}{self.api_path}"
         form = self._make_form(1, page)
         data = await self._post(url, form)
         return data.get("data", [])
 
     async def fetch_payment_records(self, page: int = 1) -> list:
-        """获取 type=2 缴费记录（分页）"""
+        """è·å type=2 ç¼´è´¹è®°å½ï¼åé¡µï¼"""
         url = f"{self.base_url}{self.api_path}"
         form = self._make_form(2, page)
         data = await self._post(url, form)
         return data.get("data", [])
 
     async def _post(self, url: str, form: dict, retries: int = 3) -> dict:
-        """POST 请求，带重试"""
+        """POST è¯·æ±ï¼å¸¦éè¯"""
         if self._closed:
-            raise Exception("API 客户端已关闭")
+            raise Exception("API å®¢æ·ç«¯å·²å³é­")
         last_error = None
         for attempt in range(retries):
             non_retryable = False
@@ -106,29 +106,29 @@ class ZhangjiajieWaterAPI:
                 try:
                     result = json.loads(text)
                 except (json.JSONDecodeError, ValueError):
-                    # 非 JSON 响应（如 502 网关错误页面），重试无意义
+                    # é JSON ååºï¼å¦ 502 ç½å³éè¯¯é¡µé¢ï¼ï¼éè¯æ æä¹
                     non_retryable = True
-                    raise Exception(f"API 返回非 JSON 响应: {text[:200]}")
+                    raise Exception(f"API è¿åé JSON ååº: {text[:200]}")
                 if result.get("res") != 100:
                     msg = result.get("msg", "")
                     detail = f" - {msg}" if msg else ""
-                    raise Exception(f"API 返回错误码 {result.get('res')}{detail}")
+                    raise Exception(f"API è¿åéè¯¯ç  {result.get('res')}{detail}")
                 return result
             except Exception as e:
                 last_error = e
                 if non_retryable or attempt >= retries - 1:
                     raise
                 wait = 2 ** attempt
-                _LOGGER.warning("API 请求失败 (第 %d/%d 次)，%d 秒后重试: %s", attempt + 1, retries, wait, e)
+                _LOGGER.warning("API è¯·æ±å¤±è´¥ (ç¬¬ %d/%d æ¬¡)ï¼%d ç§åéè¯: %s", attempt + 1, retries, wait, e)
                 await asyncio.sleep(wait)
         raise last_error
 
 
 class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
-    """数据协调器"""
+    """æ°æ®åè°å¨"""
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         update_interval = entry.options.get("update_interval", 6)
-        _LOGGER.info("[Coordinator] 初始化: 户号=%s, 轮询间隔=%d小时, options=%s, data=%s",
+        _LOGGER.info("[Coordinator] åå§å: æ·å·=%s, è½®è¯¢é´é=%då°æ¶, options=%s, data=%s",
                      entry.data.get("account_no"), update_interval, dict(entry.options), dict(entry.data))
         super().__init__(
             hass,
@@ -143,9 +143,9 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         )
         self.device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.data["account_no"])},
-            manufacturer="张家界市自来水有限责任公司",
+            manufacturer="å¼ å®¶çå¸èªæ¥æ°´æéè´£ä»»å¬å¸",
             name=entry.data.get("account_name", entry.data["account_no"]),
-            model="智能水表",
+            model="æºè½æ°´è¡¨",
             sw_version=INTEGRATION_VERSION,
         )
 
@@ -157,22 +157,22 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             )
             return self._merge_data(usage, payment)
         except Exception as e:
-            _LOGGER.error("数据更新失败: %s", e)
+            _LOGGER.error("æ°æ®æ´æ°å¤±è´¥: %s", e)
             raise
 
     async def _fetch_usage(self) -> dict:
-        """获取用水月报，逐条过滤本年记录"""
+        """è·åç¨æ°´ææ¥ï¼éæ¡è¿æ»¤æ¬å¹´è®°å½"""
         current_year = str(datetime.now().year)
         all_records = []
         page = 1
-        while page <= 20:  # 安全上限，防止脏数据死循环
+        while page <= 20:  # å®å¨ä¸éï¼é²æ­¢èæ°æ®æ­»å¾ªç¯
             records = await self.api.fetch_usage_records(page=page)
             if not records:
                 break
-            # 逐条过滤，只保留本年记录（一页可能跨年）
+            # éæ¡è¿æ»¤ï¼åªä¿çæ¬å¹´è®°å½ï¼ä¸é¡µå¯è½è·¨å¹´ï¼
             year_records = [r for r in records if r.get("ysny", "").startswith(current_year)]
             all_records.extend(year_records)
-            # 本页最旧记录已跨年，后续页更旧，停止翻页
+            # æ¬é¡µææ§è®°å½å·²è·¨å¹´ï¼åç»­é¡µæ´æ§ï¼åæ­¢ç¿»é¡µ
             last_ym = records[-1].get("ysny", "")
             if not last_ym or not last_ym.startswith(current_year):
                 break
@@ -181,8 +181,8 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             return {}
         latest = all_records[0]
         raw_month = latest.get("ysny", "")
-        # "202604" → "2026年4月"
-        formatted_month = f"{raw_month[:4]}年{int(raw_month[4:])}月" if len(raw_month) == 6 and raw_month.isdigit() else raw_month
+        # "202604" â "2026å¹´4æ"
+        formatted_month = f"{raw_month[:4]}å¹´{int(raw_month[4:])}æ" if len(raw_month) == 6 and raw_month.isdigit() else raw_month
         raw_reading = latest.get("bybs")
         numeric_reading = _safe_float(raw_reading, default=None)
         if numeric_reading is not None and numeric_reading == int(numeric_reading):
@@ -206,14 +206,14 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         }
 
     async def _fetch_payment(self) -> dict:
-        """获取最新缴费记录（type=2, page=1）"""
+        """è·åææ°ç¼´è´¹è®°å½ï¼type=2, page=1ï¼"""
         records = await self.api.fetch_payment_records(page=1)
         if not records:
             return {}
         latest = records[0]
         bcye = _safe_float(latest.get("bcye"), 0.0)
         scye = _safe_float(latest.get("scye"), 0.0)
-        # 解析交费时间（API返回格式 "2026-04-06 15:30" 或 "2026-04-06"）
+        # è§£æäº¤è´¹æ¶é´ï¼APIè¿åæ ¼å¼ "2026-04-06 15:30" æ "2026-04-06"ï¼
         raw_sfsj = latest.get("sfsj", "")
         payment_date = None
         payment_datetime = None
@@ -222,14 +222,14 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             try:
                 stripped = raw_sfsj.strip()
                 if len(stripped) > 16:
-                    # 带秒/毫秒: "2026-05-03 07:51:14" 或 "2026-05-03 07:51:14.0"
+                    # å¸¦ç§/æ¯«ç§: "2026-05-03 07:51:14" æ "2026-05-03 07:51:14.0"
                     payment_datetime = datetime.strptime(stripped[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=_TZ_SHANGHAI)
                 elif len(stripped) > 10:
                     payment_datetime = datetime.strptime(stripped, "%Y-%m-%d %H:%M").replace(tzinfo=_TZ_SHANGHAI)
                 else:
                     payment_datetime = datetime.strptime(stripped, "%Y-%m-%d").replace(tzinfo=_TZ_SHANGHAI)
             except ValueError:
-                _LOGGER.warning("交费时间格式无法解析: %s", raw_sfsj)
+                _LOGGER.warning("äº¤è´¹æ¶é´æ ¼å¼æ æ³è§£æ: %s", raw_sfsj)
         return {
             "balance": bcye,
             "previous_balance": scye,
@@ -269,25 +269,25 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             "previous_month_reading": usage.get("previous_month_reading"),
             "annual_usage": round(annual, 2),
             "annual_bill": round(annual_bill, 2),
-            "_year": current_year,  # 供 sensor 层读取当前年份
+            "_year": current_year,  # ä¾ sensor å±è¯»åå½åå¹´ä»½
         }
-        _LOGGER.debug("合并数据: %s", merged)
+        _LOGGER.debug("åå¹¶æ°æ®: %s", merged)
         return merged
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = ZhangjiajieWaterCoordinator(hass, entry)
 
-    # 首次刷新：如果失败，打印错误但继续（不让初始化彻底失败）
+    # é¦æ¬¡å·æ°ï¼å¦æå¤±è´¥ï¼æå°éè¯¯ä½ç»§ç»­ï¼ä¸è®©åå§åå½»åºå¤±è´¥ï¼
     try:
         await coordinator.async_config_entry_first_refresh()
     except Exception as err:
-        _LOGGER.warning("首次数据刷新失败，协程将在下次轮询时重试: %s", err)
+        _LOGGER.warning("é¦æ¬¡æ°æ®å·æ°å¤±è´¥ï¼åç¨å°å¨ä¸æ¬¡è½®è¯¢æ¶éè¯: %s", err)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # 正确清理：保存 undo 回调，卸载时调用它防止监听器泄漏
+    # æ­£ç¡®æ¸çï¼ä¿å­ undo åè°ï¼å¸è½½æ¶è°ç¨å®é²æ­¢çå¬å¨æ³æ¼
     unload_listener = entry.add_update_listener(_async_update_listener)
     entry.async_on_unload(unload_listener)
     return True
