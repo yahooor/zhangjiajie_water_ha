@@ -51,31 +51,42 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._config_entry = config_entry
+        _LOGGER.warning("[OptionsFlow] __init__ called, current options=%s", dict(config_entry.options))
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
+        _LOGGER.warning("[OptionsFlow] async_step_init called, user_input=%s", user_input)
+
         if user_input is not None:
-            update_interval = user_input.get("update_interval", 6)
-            if not isinstance(update_interval, int) or update_interval < 1 or update_interval > 24:
+            update_interval = user_input.get("update_interval")
+            _LOGGER.warning("[OptionsFlow] user_input received: update_interval=%s (type=%s)", update_interval, type(update_interval))
+
+            if update_interval is None:
+                _LOGGER.error("[OptionsFlow] FATAL: update_interval is None in user_input!")
+                errors = {"update_interval": "invalid_interval"}
+            elif not isinstance(update_interval, int) or update_interval < 1 or update_interval > 24:
+                _LOGGER.warning("[OptionsFlow] Validation failed: update_interval=%s", update_interval)
                 errors = {"update_interval": "invalid_interval"}
             else:
-                return self.async_create_entry(title="", data={"update_interval": update_interval})
+                _LOGGER.warning("[OptionsFlow] Validation passed, calling async_create_entry with update_interval=%d", update_interval)
+                result = self.async_create_entry(title="", data={"update_interval": update_interval})
+                _LOGGER.warning("[OptionsFlow] async_create_entry returned, options now=%s", dict(self._config_entry.options))
+                return result
         else:
             errors = {}
+            _LOGGER.warning("[OptionsFlow] user_input is None, showing form (no submission)")
 
-        update_interval = self._config_entry.options.get("update_interval", 6)
+        current = self._config_entry.options.get("update_interval", 6)
+        _LOGGER.warning("[OptionsFlow] Showing form with current update_interval=%d", current)
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Optional("update_interval", default=update_interval): vol.All(
+                vol.Optional("update_interval", default=current): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=24)
                 ),
             }),
             errors=errors,
             description_placeholders={"update_interval": "数据刷新间隔（小时）"},
         )
-
-
-
