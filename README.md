@@ -106,6 +106,9 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### v2.3.7 (2026-05-05)
+- **翻译文件 UTF-8 编码修复**：v2.3.6 的 `zh-Hans.json` 因 GitHub blob 上传时编码处理问题，中文字符在 GitHub 在线查看时显示为乱码。本版本已重新以正确 UTF-8 编码上传
+
 ### v2.3.6 (2026-05-05)
 - **翻译路径修复**：将 `translations/` 上传到 `custom_components/zhangjiajie_water/translations/`（正确路径），而非根目录 `zhangjiajie_water/translations/`
 - **文件清理**：删除 `__pycache__/`、根目录重复 `zhangjiajie_water/` 完整副本、`strings.json`、调试脚本
