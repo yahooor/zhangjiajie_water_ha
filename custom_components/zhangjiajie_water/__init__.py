@@ -206,10 +206,14 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         if raw_sfsj:
             payment_date = raw_sfsj[:10]
             try:
-                if len(raw_sfsj) > 10:
-                    payment_datetime = datetime.strptime(raw_sfsj.strip(), "%Y-%m-%d %H:%M")
+                stripped = raw_sfsj.strip()
+                if len(stripped) > 16:
+                    # 带秒/毫秒: "2026-05-03 07:51:14" 或 "2026-05-03 07:51:14.0"
+                    payment_datetime = datetime.strptime(stripped[:19], "%Y-%m-%d %H:%M:%S")
+                elif len(stripped) > 10:
+                    payment_datetime = datetime.strptime(stripped, "%Y-%m-%d %H:%M")
                 else:
-                    payment_datetime = datetime.strptime(raw_sfsj.strip(), "%Y-%m-%d")
+                    payment_datetime = datetime.strptime(stripped, "%Y-%m-%d")
             except ValueError:
                 _LOGGER.warning("交费时间格式无法解析: %s", raw_sfsj)
         return {
