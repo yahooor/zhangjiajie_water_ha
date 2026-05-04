@@ -82,25 +82,16 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
                     description_placeholders={"update_interval": "数据刷新间隔（小时）"},
                 )
 
-            # ★★★ 关键修复 v2.2.5 ★★★
-            # 1. async_update_entry 只更新内存，async_save() 才持久化到磁盘
-            # 2. 持久化后再触发 reload，确保 Coordinator 用新 interval 启动
-            new_options = dict(self._config_entry.options)
-            new_options["update_interval"] = update_interval
-            self.hass.config_entries.async_update_entry(
-                self._config_entry,
-                options=new_options
-            )
-            # ★ 必须显式调用 async_save()，否则选项只存在内存，HA 重启后丢失
-            await self.hass.config_entries.async_save()
+            # 标准 HA OptionsFlow 模式：
+            # async_create_entry(data=...) 会自动：
+            # 1. 更新 entry.options 并持久化到磁盘
+            # 2. 触发 _async_update_listener → async_reload
             _LOGGER.warning(
-                "[OptionsFlow] 保存成功: update_interval=%d, 新options=%s, 已持久化, 触发reload",
-                update_interval, new_options
+                "[OptionsFlow] 保存: update_interval=%d", update_interval
             )
-            # 触发 reload，Coordinator 会用新的 update_interval 重建
-            self.hass.config_entries.async_schedule_reload(self._config_entry.entry_id)
-            # 完成 OptionsFlow（不传 data，因为 options 已通过 async_update_entry 更新）
-            return self.async_create_entry(title="", data={})
+            return self.async_create_entry(
+                title="", data={"update_interval": update_interval}
+            )
 
         current = self._config_entry.options.get("update_interval", 6)
         return self.async_show_form(
