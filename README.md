@@ -106,100 +106,23 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
-### v2.3.8 (2026-05-05)
-- **翻译文件 UTF-8 编码修复**：v2.3.6 的 `zh-Hans.json` 因 GitHub blob 上传时编码处理问题，中文字符在 GitHub 在线查看时显示为乱码。本版本已重新以正确 UTF-8 编码上传
+### v2.3.13 (2026-05-05)
+- **ZIP 打包结构修复**：v2.3.12 的 ZIP 根目录为 `zhangjiajie_water/`，与 HACS 期望的 `custom_components/zhangjiajie_water/` 不匹配，导致安装失败
+- **`__init__.py` 中文乱码修复**：GitHub blob 上传时 `encoding: utf-8` 导致中文字符串（manufacturer/model）运行时乱码，改用 base64 编码上传
+- **版本号统一**：`const.py` INTEGRATION_VERSION 从 2.3.5 更新到 2.3.13，`manifest.json` 同步更新
 
-### v2.3.6 (2026-05-05)
-- **翻译路径修复**：将 `translations/` 上传到 `custom_components/zhangjiajie_water/translations/`（正确路径），而非根目录 `zhangjiajie_water/translations/`
-- **文件清理**：删除 `__pycache__/`、根目录重复 `zhangjiajie_water/` 完整副本、`strings.json`、调试脚本
-- **文件结构**：最终干净结构——`custom_components/zhangjiajie_water/` 下只包含必要文件 + `translations/` 子目录
-
-### v2.3.5 (2026-05-05)
-- **翻译结构再次修复（基于 ble_monitor 源码确认）**：正确结构是 `config.step.user.data` 和 `options.step.init.data`，`step` 必须嵌套在 `config`/`options` 下面，而非根层
-- Options Flow 描述使用 `{update_interval}` 占位符，运行时显示当前值
-- config_flow.py 的 `description_placeholders` 改为传数字（供占位符替换）
-
-### v2.3.4 (2026-05-05)
-- **翻译文件结构修复**：根因是翻译 JSON 结构不符合 HA 规范，`step` 应该直接在根层而不是嵌套在 `config`/`options` 下面。
-  - 错误结构：`{ "config": { "step": { "user": ... } } }`
-  - 正确结构：`{ "step": { "user": ... }, "options": { "step": { "init": ... } } }`
-  - 同时移除 `entity` 段（对 config/options flow 无效）
-  - 现在配置界面正确显示「户号」「微信 OpenID」「账户名称」，选项界面正确显示「刷新间隔（小时）」
-
-### v2.3.3 (2026-05-05)
-- **翻译文件结构修复**：根因是翻译 JSON 结构不符合 HA 规范，`step` 应该直接在根层而不是嵌套在 `config`/`options` 下面。
-  - 错误结构：`{ "config": { "step": { "user": ... } } }`
-  - 正确结构：`{ "step": { "user": ... }, "options": { "step": { "init": ... } } }`
-  - 同时移除 `entity` 段（对 config/options flow 无效）
-  - 现在配置界面正确显示「户号」「微信 OpenID」「账户名称」，选项界面正确显示「刷新间隔（小时）」
-
-### v2.3.3 (2026-05-05)
-- **HACS 图标修复**：集成根目录添加 `icon.png`，HACS 集成列表页现在显示图标
-- **翻译系统重构**：
-  - 删除 `strings.json`（自定义集成不支持该格式）
-  - 创建 `translations/en.json`（英文）和 `translations/zh-Hans.json`（简体中文，BCP47 规范）
-  - 配置文件字段名（户号/微信 OpenID/账户名称）和选项字段名（刷新间隔）正确中文显示
-- **OptionsFlow 优化**：`update_interval` 从 `vol.Optional` 改为 `vol.Required`，当前值更醒目
-
-### v2.3.2 (2026-05-04)
-- **P0 修复**：`_fetch_usage` 跨年分页 bug——逐条过滤 ysny，不再整页丢弃
-- **P0 修复**：`customer_code` 传感器数据源统一到 `_merge_data`，与其他 18 个传感器一致
-- **P1 修复**：`json.loads()` 加 try-except 防护非 JSON 响应；添加 `_closed` 标志防止 unload race
-- **P1 修复**：sensor 改名 `current_month_reading` → `latest_reading`（更准确反映数据含义）
-- **P1 修复**：OptionsFlow 冗余验证代码清理
-- **P2 修复**：Coordinator 日志级别 `warning` → `info`；添加 `hacs.json`
-
-### v2.3.1 (2026-05-04)
-- **修复**：`OptionsFlow` 保存后报 "Unknown error"——移除手动 `async_update_entry` + `async_save` + `async_schedule_reload` 三步操作，改用标准 `async_create_entry(title="", data={...})` 模式，HA 自动处理持久化和 reload
-
-### v2.3.0 (2026-05-04)
-- **修复**：Options Flow 选项不持久化 — `async_update_entry()` 只更新内存不写磁盘，重启/重载后刷新间隔回退默认值 6 小时。现已添加 `await hass.config_entries.async_save()` 确保写入 `.storage/core.config_entries`
-
-### v2.2.2 (2026-05-04)
-- **修复**：TIMESTAMP 传感器缺少时区信息导致实体加载失败，所有缴费时间现在附加 `Asia/Shanghai` 时区
-
-### v2.2.1 (2026-05-04)
-- **修复**：缴费时间格式兼容 — 服务器可能返回带秒和毫秒的时间（如 `2026-05-03 07:51:14.0`），现在正确解析三种格式
-
-### v2.2.0 (2026-05-04)
-- **新增 10 个传感器**：上次缴费时间、上次结余、发票编码、客户编码、本月表数、上月表数、本月水费、其他费用、污水处理费、垃圾处理费
-- **改名**：current_bill "本期水费" → "本期费用合计"（更准确反映包含所有费用的合计值）
-- **修复**：last_payment_date 字符串长度判断 `==10` → `>=10`，避免带时间的字符串解析失败
-- 传感器总数：9 → 19
-
-### v2.1.3 (2026-05-04)
-- **修复**：add_update_listener 返回的取消回调未保存，每次 reload 累积监听器泄漏
-- **修复**：Options Flow 缺少错误处理，用户保存失败无反馈
-- **修复**：async_config_entry_first_refresh 异常静默，导致协程进入失败状态
-
-### v2.0.2 (2026-05-02)
-- **实体名称不显示**：之前通过 `translation_key` + `has_entity_name` 方式设置实体名称，但 translation 系统加载失败时会导致实体名称变成设备名（如「李静天下二期」）。改为直接在代码中设置实体名称，更加可靠。
-- 移除 `_attr_has_entity_name = True`
-- 移除 `_attr_translation_key`（translation file 仍保留用于 config/options 界面）
-- 实体名称改为 `self._attr_name = name` 直接设置
-- 实体 ID 格式：`sensor.zjw_115062401_balance`（基于 unique_id，不再基于设备名）
-
-### v2.0.1 (2026-05-02)
-- **翻译文件损坏**：zh.json 和 strings.json 的中文字符在上传时被损坏，实体名称无法显示。重新上传 UTF-8 编码文件。
-- **translation_placeholders**：非年度传感器不再设置 `translation_placeholders = None`，避免覆盖翻译系统的默认行为。
-- （此版本 tag 已存在但未正式发布）
-
-### v2.0.0 (2026-05-02)
-- **版本号不符合 PEP 440**：manifest.json 中 `version: "1.2.6b"` 不符合 pip 版本规范，Home Assistant 拒绝加载。升级到 2.0.0。
-- 跳过 1.2.6b（该版本号无法在 HA 中使用）
-
-### v1.2.6 (2026-05-02)
-- **修复**：`_attr_translation_key` 改为类级别声明，修复 entity name 翻译失效问题（所有实体显示为账户名称而非翻译后的实体名）
-- `translation_placeholders` 从 property 改为 `_attr_translation_placeholders` 实例属性
+### v2.3.12 (2026-05-05)
+- **重新打包**：v2.3.11 commit 只有 10 文件（丢失 brand/translations/icon.png/__init__.py），基于 v2.3.10 的 19 文件完整 tree 重建
 
 ### v1.2.5 (2026-05-01)
 - **修复**：`last_payment_date` 的 `native_value` 增加 `isinstance(value, date)` 判断，避免重复解析 date 对象
 - 字符串解析失败时返回 `None`
 - MONETARY 传感器 `state_class` 设为 `None`
 
-### v2.3.12 (2026-05-05)
-- **重新打包发布**：v2.3.11 因打包脚本 bug 丢失了 brand/、translations/ 等 9 个文件。本版本基于 v2.3.10（19 文件完整）的正确 commit `2548c261`，重新打包上传
-- **版本号修复**：`manifest.json` 从 2.3.8 更新到 2.3.12
+### v2.3.11 (2026-05-05)
+- **brand 图片编码修复**：`brand/*.png` 4 个文件因 GitHub blob 上传时使用 `encoding: utf-8` 导致二进制图片数据损坏，GitHub 在线查看显示乱码。本版本已通过 base64 编码重新上传
+- **仓库文件恢复**：由于操作失误导致仓库只剩 brand 目录，本版本重建完整文件树（19 个文件）
+- **版本号修复**：`manifest.json` 从 2.3.8 更新到 2.3.11
 
 ### v2.3.10 (2026-05-05)
 - **Python 文件 UTF-8 编码全面修复**：重新上传 `__init__.py`、`sensor.py`、`config_flow.py`，通过 base64 编码避免 UTF-8 双编码问题
