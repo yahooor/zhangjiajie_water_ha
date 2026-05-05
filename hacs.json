@@ -1,10 +1,8 @@
 {
   "name": "张家界供水",
-  "description": "张家界市自来水有限责任公司供水查询集成，读取用水记录、缴费信息和余额",
   "content_in_root": false,
   "country": [
     "CN"
   ],
-  "homeassistant": "2024.1.0",
-  "icon": "custom_components/zhangjiajie_water/icon.png"
+  "homeassistant": "2024.1.0"
 }
