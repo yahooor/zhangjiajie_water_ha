@@ -106,6 +106,14 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### v2.3.15 (2026-05-05)
+- **hacs.json 修复**：添加 `icon` 和 `description` 字段，修复 HACS 内图标不显示问题
+- **版本号同步更新**
+
+### v2.3.14 (2026-05-05)
+- **轮询修复**：`DataUpdateCoordinator` 添加 `config_entry` 参数，修复定时轮询不生效问题
+- **增强日志**：Coordinator 初始化和数据刷新改用 WARNING 级别，便于排查问题
+
 ### v2.3.13 (2026-05-05)
 - **ZIP 打包结构修复**：根目录从 `zhangjiajie_water/` 改为 `custom_components/zhangjiajie_water/`，与 HACS 期望路径一致
 - **`__init__.py` 中文乱码修复**：GitHub blob 上传改用 base64 编码，修复 manufacturer/model 字符串乱码
