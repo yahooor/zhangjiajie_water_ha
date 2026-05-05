@@ -107,67 +107,82 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 ## 更新日志
 
 ### v2.3.13 (2026-05-05)
-- **ZIP 打包结构修复**：v2.3.12 的 ZIP 根目录为 `zhangjiajie_water/`，与 HACS 期望的 `custom_components/zhangjiajie_water/` 不匹配，导致安装失败
-- **`__init__.py` 中文乱码修复**：GitHub blob 上传时 `encoding: utf-8` 导致中文字符串（manufacturer/model）运行时乱码，改用 base64 编码上传
-- **版本号统一**：`const.py` INTEGRATION_VERSION 从 2.3.5 更新到 2.3.13，`manifest.json` 同步更新
+- **ZIP 打包结构修复**：根目录从 `zhangjiajie_water/` 改为 `custom_components/zhangjiajie_water/`，与 HACS 期望路径一致
+- **`__init__.py` 中文乱码修复**：GitHub blob 上传改用 base64 编码，修复 manufacturer/model 字符串乱码
+- **版本号统一**：`const.py` 和 `manifest.json` 版本号同步为 2.3.13
+- **Logo 图片修复**：重新生成 5 张 PNG（icon 256x256，brand/ 四张 640x640）
 
 ### v2.3.12 (2026-05-05)
-- **重新打包**：v2.3.11 commit 只有 10 文件（丢失 brand/translations/icon.png/__init__.py），基于 v2.3.10 的 19 文件完整 tree 重建
-
-### v1.2.5 (2026-05-01)
-- **修复**：`last_payment_date` 的 `native_value` 增加 `isinstance(value, date)` 判断，避免重复解析 date 对象
-- 字符串解析失败时返回 `None`
-- MONETARY 传感器 `state_class` 设为 `None`
+- **重新打包**：v2.3.11 丢失 9 个文件，基于 v2.3.10 完整 tree 重建 19 个文件
 
 ### v2.3.11 (2026-05-05)
-- **brand 图片编码修复**：`brand/*.png` 4 个文件因 GitHub blob 上传时使用 `encoding: utf-8` 导致二进制图片数据损坏，GitHub 在线查看显示乱码。本版本已通过 base64 编码重新上传
-- **仓库文件恢复**：由于操作失误导致仓库只剩 brand 目录，本版本重建完整文件树（19 个文件）
-- **版本号修复**：`manifest.json` 从 2.3.8 更新到 2.3.11
+- **brand 图片编码修复**：改用 base64 编码上传，修复二进制损坏
+- **仓库文件恢复**：重建完整文件树（19 个文件）
 
 ### v2.3.10 (2026-05-05)
-- **Python 文件 UTF-8 编码全面修复**：重新上传 `__init__.py`、`sensor.py`、`config_flow.py`，通过 base64 编码避免 UTF-8 双编码问题
-- **版本号修复**：`manifest.json` 更新到 2.3.8
+- **Python 文件 UTF-8 编码全面修复**：全部改用 base64 上传，解决中文双编码问题
+
+### v2.3.8 (2026-05-05)
+- 尝试修复 Python 文件编码问题（v2.3.10 最终修复）
+
+### v2.3.6 (2026-05-05)
+- **zh-Hans.json 乱码修复**：解决翻译文件中文显示乱码
+
+### v2.3.4 (2026-05-04)
+- **翻译文件结构修复**：删除错误的 `config.` 前缀，BCP47 改为 `zh-Hans.json`
+
+### v2.3.2 (2026-05-04)
+- **P0 跨年分页 bug 修复**：改为逐条过滤 `ysny`，避免边界页数据丢失
+- **P0 async_close race condition 修复**：加 `_closed` flag 保护
+- 9 文件全量代码审查（+66/-50）
+
+### v2.3.1 (2026-05-04)
+- **OptionsFlow 三重操作冲突修复**：简化为标准 `async_create_entry` 模式
+
+### v2.3.0 (2026-05-04)
+- OptionsFlow 持久化修复 + listener leak 修复
+- TIMESTAMP 时区修复
+
+### v2.2.5 (2026-05-04)
+- OptionsFlow 持久化尝试（后由 v2.3.1 彻底修复）
+
+### v2.2.2 (2026-05-04)
+- **TIMESTAMP 缺时区修复**：缴费时间添加时区信息
+
+### v2.2.1 (2026-05-04)
+- **sfsj 时间格式 3 层兼容**：支持多种日期格式解析
+
+### v2.2.0 (2026-05-04)
+- **传感器从 9 个扩展到 19 个**：新增污水费、垃圾费、附加费、月度详情等
+
+### v2.0.0 (2026-05-01)
+- **版本号 PEP 440 合规**：从 `1.2.x` 系列跳到 `2.x`，避免 a/b/rc 后缀导致 HA 拒绝加载
+
+### v1.2.5 (2026-05-01)
+- **修复**：`last_payment_date` 增加 `isinstance(value, date)` 判断
+- MONETARY 传感器 `state_class` 设为 `None`
 
 ### v1.2.4 (2026-05-01)
-- 添加 brand/ 品牌图标（dark_icon、dark_logo、icon、logo）
+- 添加 brand/ 品牌图标
 
 ### v1.2.3 (2026-05-01)
-- **修复**：`_fetch_usage` 跨年数据混入 — 先检查 `records[0].ysny` 是否为本年，再决定是否 extend，避免将旧年度数据混入本年统计
-- 删除冗余的 `first_ym` 变量赋值
-
-### v1.2.2 (2026-05-01)
-- **同步**：README 与 GitHub 在线仓库保持一致
+- **修复**：`_fetch_usage` 跨年数据混入
 
 ### v1.2.1 (2026-05-01)
-- **修复**：翻页逻辑致命错误 — `current_year` 判断从 `records[-1]` 改为 `records[0]`，此前 annual_usage/annual_bill 数据严重偏少
-- **修复**：const.py 版本号 1.2.0 与 manifest.json 1.2.1 不一致，已统一为 1.2.1
-- **修复**：last_payment_amount 缺少 state_class，已补上 MEASUREMENT
+- **修复**：翻页逻辑致命错误（annual 数据严重偏少）
+- **修复**：版本号不一致
 
 ### v1.2.0 (2026-05-01)
-- **修复**：金额单位 `"元"` → `"CNY"`（ISO 4217 货币码，MONETARY device_class 规范要求）
-- **修复**：latest_reading 改为 `SensorStateClass.MEASUREMENT`（水表读数非累计增量，换表回退不再触发 HA 警告）
-- **修复**：年度传感器年份前缀不显示 → 使用 `translation_placeholders` 注入年份，实体名正确显示如 "2026年累计用水"
-- **修复**：`float()` 未防护非法值 → 新增 `_safe_float()` 函数，API 返回非数字不再导致整次更新失败
-- **优化**：`sw_version` 改为跟踪集成版本号
+- **修复**：金额单位改为 CNY（ISO 4217）
+- **修复**：latest_reading 改为 MEASUREMENT
+- **新增**：`_safe_float()` 函数防护非法值
 
 ### v1.1.0 (2026-05-01)
-- **新增**：Options Flow — 支持在集成选项中调整刷新间隔（1~24小时）
-- **新增**：translations/zh.json — 配置流和选项界面完整中文翻译
-- **新增**：`_attr_has_entity_name = True` + `translation_key` — HA 2024.1+ 实体命名规范
-- **新增**：`SensorStateClass` — 余额/用量 MEASUREMENT，累计 TOTAL_INCREASING，支持长期统计
-- **新增**：`issue_tracker` — manifest 添加 Issues 链接
-- **修复**：latest_read 单位移除 m³（读数无量纲）
-- **优化**：strings.json 增加 options 和 entity 翻译段
-
-### v1.0.1 (2026-05-01)
-- 优化配置流中文字段标签（户号/账户名称）
-- 全量代码逻辑审查通过
+- **新增**：Options Flow（1~24 小时刷新间隔）
+- **新增**：中文翻译 + SensorStateClass 支持长期统计
 
 ### v1.0.0 (2026-05-01)
-- **首发**：张家界供水 HA 集成首发
-- 支持 9 个传感器：余额、缴费、用水、读数、年度统计
-- OpenID + 户号认证，无需用户名密码
-- HACS 兼容目录结构
+- **首发**：张家界供水 HA 集成，9 个传感器，OpenID + 户号认证
 
 ## License
 
