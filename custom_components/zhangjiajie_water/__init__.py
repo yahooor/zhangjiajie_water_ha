@@ -128,8 +128,8 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
     """数据协调器"""
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         update_interval = entry.options.get("update_interval", 6)
-        _LOGGER.warning("[Coordinator] 初始化: 户号=%s, 轮询间隔=%d小时, options=%s, data=%s",
-                        entry.data.get("account_no"), update_interval, dict(entry.options), dict(entry.data))
+        _LOGGER.debug("[Coordinator] 初始化: 户号=%s, 轮询间隔=%d小时, options=%s, data=%s",
+                     entry.data.get("account_no"), update_interval, dict(entry.options), dict(entry.data))
         super().__init__(
             hass,
             _LOGGER,
@@ -151,14 +151,14 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self) -> dict:
-        _LOGGER.warning("[Coordinator] _async_update_data 开始执行")
+        _LOGGER.debug("[Coordinator] _async_update_data 开始执行")
         try:
             usage, payment = await asyncio.gather(
                 self._fetch_usage(),
                 self._fetch_payment()
             )
             data = self._merge_data(usage, payment)
-            _LOGGER.warning("[Coordinator] _async_update_data 成功，数据: %s", data)
+            _LOGGER.debug("[Coordinator] _async_update_data 成功，数据: %s", data)
             return data
         except Exception as e:
             _LOGGER.error("数据更新失败: %s", e)

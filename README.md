@@ -106,9 +106,8 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
-### v2.3.15 (2026-05-05)
-- **hacs.json 修复**：添加 `icon` 和 `description` 字段，修复 HACS 内图标不显示问题
-- **版本号同步更新**
+### v2.3.15 (2026-05-06)
+- **日志级别调整**：Coordinator 初始化和轮询日志从 WARNING 降为 DEBUG，消除 HA 误报"此错误来自自定义集成"
 
 ### v2.3.14 (2026-05-05)
 - **轮询修复**：`DataUpdateCoordinator` 添加 `config_entry` 参数，修复定时轮询不生效问题
