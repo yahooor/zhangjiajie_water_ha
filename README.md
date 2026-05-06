@@ -106,6 +106,17 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### v2.4.0 (2026-05-06)
+- **HACS Logo 修复**：`brand/logo.png` 和 `dark_logo.png` 改为 640x320 横幅格式，HACS 仓库列表现在正确展示 logo
+- **Brand 图片区分**：icon（正方形 640x640）和 logo（横幅 640x320）分别生成，亮色/暗色各一套
+- **年度传感器跨年修复**：年度传感器名称（如"2026年累计用水"）在跨年后自动更新年份
+- **HA 共享 session**：API 客户端改用 `async_get_clientsession(hass)` 共享连接池，避免资源泄漏
+- **annual_usage 类型优化**：从 `TOTAL_INCREASING` 改为 `MEASUREMENT`，避免跨年数据跳跃
+- **hacs.json**：添加 `render_readme: true`，HACS 正确渲染 README
+- **类型注解修复**：`_safe_float` 函数支持 `float | None` 返回值
+- **.gitignore 清理**：删除末尾 UTF-16 乱码行
+- **icon.png 压缩**：组件图标从 38KB 优化到 ~2KB
+
 ### v2.3.15 (2026-05-06)
 - **日志级别调整**：Coordinator 初始化和轮询日志从 WARNING 降为 DEBUG，消除 HA 误报"此错误来自自定义集成"
 

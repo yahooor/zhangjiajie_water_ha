@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import DOMAIN, BASE_URL, API_PATH, INTEGRATION_VERSION
 import asyncio
 
@@ -18,7 +19,7 @@ PLATFORMS = ["sensor"]
 _TZ_SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
-def _safe_float(value, default: float = 0.0) -> float:
+def _safe_float(value, default: float | None = 0.0) -> float | None:
     """安全转换 float，非法值返回 default"""
     try:
         return float(value)
@@ -28,23 +29,26 @@ def _safe_float(value, default: float = 0.0) -> float:
 
 class ZhangjiajieWaterAPI:
     """张家界水务 API 客户端"""
-    def __init__(self, account_no: str, openid: str):
+    def __init__(self, account_no: str, openid: str, hass: HomeAssistant | None = None):
         self.account_no = account_no
         self.openid = openid
         self.base_url = BASE_URL
         self.api_path = API_PATH
         self._session: aiohttp.ClientSession | None = None
+        self._hass = hass
         self._closed = False
 
     async def async_close(self) -> None:
-        """关闭 HTTP session"""
+        """关闭 HTTP session（仅在自建 session 时关闭）"""
         self._closed = True
-        if self._session and not self._session.closed:
+        if self._session and not self._session.closed and self._hass is None:
             await self._session.close()
             self._session = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """获取或创建复用的 ClientSession"""
+        """获取 HA 共享 session 或自建 session"""
+        if self._hass is not None:
+            return async_get_clientsession(self._hass)
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))
         return self._session
@@ -141,6 +145,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         self.api = ZhangjiajieWaterAPI(
             account_no=entry.data["account_no"],
             openid=entry.data["openid"],
+            hass=hass,
         )
         self.device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.data["account_no"])},

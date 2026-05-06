@@ -26,7 +26,7 @@ BASE_SENSORS = {
     "previous_month_reading": ("最新抄表上期读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
     "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
     "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None),
-    "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.TOTAL_INCREASING),
+    "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.MEASUREMENT),
     "annual_bill": ("年累计水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
 }
 
@@ -68,6 +68,16 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
             year = coordinator.data.get("_year", "")
             if year:
                 self._attr_name = f"{year}年{name}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """数据更新时同步刷新年度传感器名称（跨年自动更新）。"""
+        if self._key in ("annual_usage", "annual_bill") and self.coordinator.data:
+            year = self.coordinator.data.get("_year", "")
+            base_name = BASE_SENSORS[self._key][0]
+            if year:
+                self._attr_name = f"{year}年{base_name}"
+        super()._handle_coordinator_update()
 
     @property
     def native_value(self):
