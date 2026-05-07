@@ -45,6 +45,8 @@ async def async_setup_entry(
 
 
 class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator,

@@ -106,6 +106,14 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### [v2.7.0](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.7.0) (2026-05-08)
+
+- **手动刷新按钮**：新增"刷新数据"按钮实体，用户可随时手动触发数据更新
+- **API 失败通知**：连续 3 次刷新失败后自动发送 HA 持久通知，引导用户排查
+- **`_attr_has_entity_name`**：传感器实体启用标准命名，显示为"设备名 + 实体名"
+- **`integration_type: "device"`**：manifest.json 声明设备类型集成
+- 借鉴 [温州水务集成](https://github.com/C3H3-AI/ha-wenzhou-water) 最佳实践
+
 ### [v2.6.2](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.6.2) (2026-05-07)
 
 - **紧急修复**：`UpdateFailed` 从 `homeassistant.helpers.update_coordinator` 导入（非 `homeassistant.exceptions`）

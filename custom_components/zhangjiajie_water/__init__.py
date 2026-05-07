@@ -13,7 +13,7 @@ from .const import DOMAIN, BASE_URL, API_PATH, INTEGRATION_VERSION
 import asyncio
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "button"]
 
 
 _TZ_SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -135,6 +135,8 @@ class ZhangjiajieWaterAPI:
 
 class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
     """数据协调器"""
+    _CONSECUTIVE_FAILURES_NOTIFY = 3  # 连续失败 3 次后发送通知
+
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         update_interval = entry.options.get("update_interval", 6)
         _LOGGER.debug("[Coordinator] 初始化: 户号=%s, 轮询间隔=%d小时, options=%s, data=%s",
@@ -159,6 +161,8 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             model="智能水表",
             sw_version=INTEGRATION_VERSION,
         )
+        self._consecutive_failures = 0
+        self._notification_sent = False
 
     async def _async_update_data(self) -> dict:
         _LOGGER.debug("[Coordinator] _async_update_data 开始执行")
@@ -169,11 +173,50 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             )
             data = self._merge_data(usage, payment)
             _LOGGER.debug("[Coordinator] _async_update_data 成功，数据: %s", data)
+            # 成功时重置失败计数
+            self._consecutive_failures = 0
+            if self._notification_sent:
+                self._notification_sent = False
+                # 清除之前的通知
+                self.hass.async_create_task(
+                    self.hass.services.async_call(
+                        "persistent_notification", "dismiss",
+                        {"notification_id": f"{DOMAIN}_api_error_{self.entry.entry_id}"},
+                    )
+                )
             return data
         except UpdateFailed:
             raise
         except Exception as e:
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= self._CONSECUTIVE_FAILURES_NOTIFY and not self._notification_sent:
+                self._notification_sent = True
+                self.hass.async_create_task(self._send_error_notification(str(e)))
             raise UpdateFailed(f"数据更新失败: {e}") from e
+
+    async def _send_error_notification(self, error_msg: str) -> None:
+        """发送 API 持续失败通知"""
+        account = self.entry.data.get("account_name", self.entry.data["account_no"])
+        try:
+            await self.hass.services.async_call(
+                "persistent_notification", "create",
+                {
+                    "title": f"⚠️ 张家界供水数据更新失败（{account}）",
+                    "message": (
+                        f"连续 {self._consecutive_failures} 次数据刷新失败。\n\n"
+                        f"**错误信息**: {error_msg}\n\n"
+                        "可能原因：\n"
+                        "- 网络连接问题\n"
+                        "- 供水公司 API 服务异常\n"
+                        "- OpenID 或户号变更\n\n"
+                        "如果问题持续，请尝试重新配置集成。"
+                    ),
+                    "notification_id": f"{DOMAIN}_api_error_{self.entry.entry_id}",
+                },
+                blocking=True,
+            )
+        except Exception as e:
+            _LOGGER.warning("发送失败通知时出错: %s", e)
 
     async def _fetch_usage(self) -> dict:
         """获取用水月报，逐条过滤本年记录"""
