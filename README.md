@@ -106,6 +106,14 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### [v2.6.0](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.6.0) (2026-05-07)
+
+- **GitHub Actions CI/CD**：新增自动验证 + 发布流程
+  - 每次 push/PR 自动运行 HACS + Hassfest 验证
+  - 发布 Release 时自动校验版本号一致性（tag/manifest/const）
+  - 自动打包 ZIP 并上传为 Release Asset
+- **HACS ZIP 发布**：`hacs.json` 启用 `zip_release`，安装更可靠
+
 ### [v2.5.1](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.5.1) (2026-05-07)
 
 - **Logo 替换**：使用官方张家界供水 Logo 重新生成全部 brand 图片和组件图标

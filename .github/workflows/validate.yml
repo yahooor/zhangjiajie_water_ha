@@ -1,0 +1,24 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * *" # 每日自动验证
+
+jobs:
+  validate-hacs:
+    name: "HACS & Hassfest 验证"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: HACS 验证
+        uses: hacs/action@main
+        with:
+          CATEGORY: "integration"
+
+      - name: Hassfest 验证
+        uses: home-assistant/actions/hassfest@master

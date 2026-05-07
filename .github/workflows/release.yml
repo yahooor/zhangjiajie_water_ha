@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  validate:
+    name: "发布前验证"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 验证版本号一致
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          TAG_VER="${TAG#v}"
+          MANIFEST_VER=$(python3 -c "import json; print(json.load(open('custom_components/zhangjiajie_water/manifest.json'))['version'])")
+          CONST_VER=$(python3 -c "
+          import re
+          content = open('custom_components/zhangjiajie_water/const.py').read()
+          m = re.search(r'INTEGRATION_VERSION\s*=\s*[\"']([^\"']+)[\"']', content)
+          print(m.group(1))
+          ")
+          echo "Tag: $TAG_VER | Manifest: $MANIFEST_VER | Const: $CONST_VER"
+          if [ "$TAG_VER" != "$MANIFEST_VER" ]; then
+            echo "ERROR: Tag version ($TAG_VER) != manifest.json version ($MANIFEST_VER)"
+            exit 1
+          fi
+          if [ "$TAG_VER" != "$CONST_VER" ]; then
+            echo "ERROR: Tag version ($TAG_VER) != const.py version ($CONST_VER)"
+            exit 1
+          fi
+          echo "All versions match: $TAG_VER"
+
+      - name: HACS 验证
+        uses: hacs/action@main
+        with:
+          CATEGORY: "integration"
+
+      - name: Hassfest 验证
+        uses: home-assistant/actions/hassfest@master
+
+  attach-zip:
+    name: "生成并上传 ZIP"
+    runs-on: ubuntu-latest
+    needs: validate
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 打包 ZIP
+        run: |
+          cd custom_components/zhangjiajie_water
+          zip -r ../../../zhangjiajie_water.zip ./
+
+      - name: 上传到 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: zhangjiajie_water.zip
