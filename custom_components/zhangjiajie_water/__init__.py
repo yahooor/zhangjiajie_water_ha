@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 import logging
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.exceptions import UpdateFailed
 from .const import DOMAIN, BASE_URL, API_PATH, INTEGRATION_VERSION
 import asyncio
 
@@ -97,8 +98,8 @@ class ZhangjiajieWaterAPI:
     async def _post(self, url: str, form: dict, retries: int = 3) -> dict:
         """POST 请求，带重试"""
         if self._closed:
-            raise Exception("API 客户端已关闭")
-        last_error = None
+            raise UpdateFailed("API 客户端已关闭")
+        last_error: Exception | None = None
         for attempt in range(retries):
             non_retryable = False
             try:
@@ -106,6 +107,9 @@ class ZhangjiajieWaterAPI:
                 async with session.post(url, data=form, headers=self.headers) as resp:
                     text = await resp.text()
                     if resp.status != 200:
+                        # HTTP 4xx 客户端错误不应重试（如 401/403/404）
+                        if 400 <= resp.status < 500:
+                            non_retryable = True
                         raise Exception(f"API HTTP {resp.status}: {text[:200]}")
                 try:
                     result = json.loads(text)
@@ -114,6 +118,8 @@ class ZhangjiajieWaterAPI:
                     non_retryable = True
                     raise Exception(f"API 返回非 JSON 响应: {text[:200]}")
                 if result.get("res") != 100:
+                    # API 业务错误（如户号错误），重试无意义
+                    non_retryable = True
                     msg = result.get("msg", "")
                     detail = f" - {msg}" if msg else ""
                     raise Exception(f"API 返回错误码 {result.get('res')}{detail}")
@@ -125,7 +131,7 @@ class ZhangjiajieWaterAPI:
                 wait = 2 ** attempt
                 _LOGGER.warning("API 请求失败 (第 %d/%d 次)，%d 秒后重试: %s", attempt + 1, retries, wait, e)
                 await asyncio.sleep(wait)
-        raise last_error
+        raise last_error  # type: ignore[misc]
 
 
 class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
@@ -165,9 +171,10 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             data = self._merge_data(usage, payment)
             _LOGGER.debug("[Coordinator] _async_update_data 成功，数据: %s", data)
             return data
-        except Exception as e:
-            _LOGGER.error("数据更新失败: %s", e)
+        except UpdateFailed:
             raise
+        except Exception as e:
+            raise UpdateFailed(f"数据更新失败: {e}") from e
 
     async def _fetch_usage(self) -> dict:
         """获取用水月报，逐条过滤本年记录"""

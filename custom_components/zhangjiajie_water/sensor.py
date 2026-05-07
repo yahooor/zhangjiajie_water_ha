@@ -5,29 +5,30 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity import EntityCategory
 from .const import DOMAIN
 
-# (name, icon, unit, device_class, state_class)
+# (name, icon, unit, device_class, state_class, entity_category)
 BASE_SENSORS = {
-    "balance": ("账户余额", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, None),
-    "last_payment_date": ("上次缴费日期", "mdi:calendar", None, SensorDeviceClass.DATE, None),
-    "last_payment_time": ("上次缴费时间", "mdi:clock-outline", None, SensorDeviceClass.TIMESTAMP, None),
-    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, None),
-    "previous_balance": ("上次结余", "mdi:cash-minus", "CNY", SensorDeviceClass.MONETARY, None),
-    "invoice_code": ("发票编码", "mdi:receipt-text", None, None, None),
-    "customer_code": ("客户编码", "mdi:identifier", None, None, None),
-    "current_usage": ("本期用水量", "mdi:water", "m³", None, SensorStateClass.MEASUREMENT),
-    "current_bill": ("本期费用合计", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
-    "current_water_fee": ("本月水费", "mdi:water-outline", "CNY", SensorDeviceClass.MONETARY, None),
-    "other_fees": ("其他费用", "mdi:receipt-text-outline", "CNY", SensorDeviceClass.MONETARY, None),
-    "sewage_fee": ("污水处理费", "mdi:water-pump", "CNY", SensorDeviceClass.MONETARY, None),
-    "garbage_fee": ("垃圾处理费", "mdi:trash-can-outline", "CNY", SensorDeviceClass.MONETARY, None),
-    "current_month_reading": ("最新抄表读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
-    "previous_month_reading": ("最新抄表上期读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
-    "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT),
-    "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None),
-    "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.MEASUREMENT),
-    "annual_bill": ("年累计水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None),
+    "balance": ("账户余额", "mdi:cash", "CNY", SensorDeviceClass.MONETARY, None, None),
+    "last_payment_date": ("上次缴费日期", "mdi:calendar", None, SensorDeviceClass.DATE, None, None),
+    "last_payment_time": ("上次缴费时间", "mdi:clock-outline", None, SensorDeviceClass.TIMESTAMP, None, None),
+    "last_payment_amount": ("上次缴费金额", "mdi:cash-100", "CNY", SensorDeviceClass.MONETARY, None, None),
+    "previous_balance": ("上次结余", "mdi:cash-minus", "CNY", SensorDeviceClass.MONETARY, None, None),
+    "invoice_code": ("发票编码", "mdi:receipt-text", None, None, None, EntityCategory.DIAGNOSTIC),
+    "customer_code": ("客户编码", "mdi:identifier", None, None, None, EntityCategory.DIAGNOSTIC),
+    "current_usage": ("本期用水量", "mdi:water", "m³", None, SensorStateClass.MEASUREMENT, None),
+    "current_bill": ("本期费用合计", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None, None),
+    "current_water_fee": ("本月水费", "mdi:water-outline", "CNY", SensorDeviceClass.MONETARY, None, None),
+    "other_fees": ("其他费用", "mdi:receipt-text-outline", "CNY", SensorDeviceClass.MONETARY, None, None),
+    "sewage_fee": ("污水处理费", "mdi:water-pump", "CNY", SensorDeviceClass.MONETARY, None, None),
+    "garbage_fee": ("垃圾处理费", "mdi:trash-can-outline", "CNY", SensorDeviceClass.MONETARY, None, None),
+    "current_month_reading": ("最新抄表读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT, None),
+    "previous_month_reading": ("最新抄表上期读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT, None),
+    "latest_reading": ("最新读数", "mdi:gauge", None, None, SensorStateClass.MEASUREMENT, None),
+    "latest_reading_month": ("抄表月份", "mdi:calendar-month", None, None, None, None),
+    "annual_usage": ("年累计用水", "mdi:chart-bar", "m³", None, SensorStateClass.MEASUREMENT, None),
+    "annual_bill": ("年累计水费", "mdi:currency-cny", "CNY", SensorDeviceClass.MONETARY, None, None),
 }
 
 
@@ -53,6 +54,7 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
         unit: str | None,
         device_class: str | None,
         state_class: str | None,
+        entity_category: str | None = None,
     ) -> None:
         super().__init__(coordinator)
         self._key = key
@@ -61,6 +63,7 @@ class ZhangjiajieWaterSensor(CoordinatorEntity, SensorEntity):
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = device_class
         self._attr_state_class = state_class
+        self._attr_entity_category = entity_category
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
         self._attr_device_info = coordinator.device_info
         # 年度传感器名称注入当前年份（coordinator.data 在 add_entities 时已填充）

@@ -1,16 +1,15 @@
 {
   "domain": "zhangjiajie_water",
   "name": "张家界供水",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "config_flow": true,
   "documentation": "https://github.com/yahooor/zhangjiajie_water_ha",
   "issue_tracker": "https://github.com/yahooor/zhangjiajie_water_ha/issues",
   "codeowners": [
     "@yahooor"
   ],
-  "requirements": [
-    "aiohttp>=3.7.4"
-  ],
+  "requirements": [],
   "iot_class": "cloud_polling",
+  "loggers": ["custom_components.zhangjiajie_water"],
   "icon": "mdi:water-pump"
 }

@@ -106,14 +106,27 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
-### [v2.5.0](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.5.0) (2026-05-06)
+### [v2.5.1](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.5.1) (2026-05-07)
 
 - **Logo 替换**：使用官方张家界供水 Logo 重新生成全部 brand 图片和组件图标
-- **更新日志整合**：合并 v2.2.0 之前碎片化的版本记录，所有版本链接到正确的 GitHub Release
+- **UpdateFailed 异常**：`_async_update_data` 改用 `UpdateFailed`，HA UI 显示友好错误信息
+- **智能重试优化**：API 业务错误码（如户号错误）和 HTTP 4xx 不再无意义重试
+- **移除多余依赖**：`manifest.json` 删除 `aiohttp`（HA 核心已自带）
+- **诊断传感器分类**：`发票编码`、`客户编码` 归入诊断类别，不 clutter 主传感器列表
+- **日志配置增强**：`manifest.json` 添加 `loggers` 字段，支持在集成详情页直接调日志级别
+- **更新日志整合**：合并 v2.2.0 之前碎片化版本记录，修正 v2.4.0 内容错误
 
 > ⚠️ **HACS 仓库列表不显示 Logo 已知问题**：这是 HACS 的 [已知 Bug #5171](https://github.com/hacs/integration/issues/5171)——HACS 前端仍从 CDN 获取图标，未回退到本地 brands API。Logo 在 HA 集成页面正常显示，等待 HACS 上游修复。
 
 ### [v2.4.0](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.4.0) (2026-05-06)
+
+- **年度传感器跨年修复**：年度传感器名称在跨年后自动更新年份
+- **HA 共享 session**：API 客户端改用共享连接池，避免资源泄漏
+- **annual_usage 类型优化**：从 `TOTAL_INCREASING` 改为 `MEASUREMENT`，避免跨年数据跳跃
+- **hacs.json**：添加 `render_readme: true`
+- **类型注解修复**：`_safe_float` 函数支持 `float | None` 返回值
+
+### [v2.3.15](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.3.15) (2026-05-06)
 
 - **日志级别调整**：Coordinator 初始化和轮询日志从 WARNING 降为 DEBUG，消除 HA 误报
 
