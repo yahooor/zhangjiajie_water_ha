@@ -6,10 +6,9 @@ from zoneinfo import ZoneInfo
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.exceptions import UpdateFailed
 from .const import DOMAIN, BASE_URL, API_PATH, INTEGRATION_VERSION
 import asyncio
 
