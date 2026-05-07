@@ -106,6 +106,11 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 更新日志
 
+### [v2.6.2](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.6.2) (2026-05-07)
+
+- **紧急修复**：`UpdateFailed` 从 `homeassistant.helpers.update_coordinator` 导入（非 `homeassistant.exceptions`）
+- **manifest.json 规范**：keys 按 Hassfest 要求排序（domain, name, alphabetical）
+
 ### [v2.6.1](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.6.1) (2026-05-07)
 
 - **GitHub Actions CI/CD**：新增自动验证 + 发布流程
