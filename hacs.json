@@ -5,7 +5,5 @@
     "CN"
   ],
   "homeassistant": "2024.1.0",
-  "render_readme": true,
-  "zip_release": true,
-  "filename": "zhangjiajie_water.zip"
+  "render_readme": true
 }
