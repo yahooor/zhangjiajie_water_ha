@@ -1,14 +1,14 @@
 {
   "domain": "zhangjiajie_water",
   "name": "张家界供水",
-  "version": "2.6.1",
-  "config_flow": true,
-  "documentation": "https://github.com/yahooor/zhangjiajie_water_ha",
-  "issue_tracker": "https://github.com/yahooor/zhangjiajie_water_ha/issues",
   "codeowners": [
     "@yahooor"
   ],
-  "requirements": [],
+  "config_flow": true,
+  "documentation": "https://github.com/yahooor/zhangjiajie_water_ha",
   "iot_class": "cloud_polling",
-  "loggers": ["custom_components.zhangjiajie_water"]
+  "issue_tracker": "https://github.com/yahooor/zhangjiajie_water_ha/issues",
+  "loggers": ["custom_components.zhangjiajie_water"],
+  "requirements": [],
+  "version": "2.6.1"
 }
