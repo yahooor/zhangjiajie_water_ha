@@ -16,12 +16,7 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           TAG_VER="${TAG#v}"
           MANIFEST_VER=$(python3 -c "import json; print(json.load(open('custom_components/zhangjiajie_water/manifest.json'))['version'])")
-          CONST_VER=$(python3 -c "
-          import re
-          content = open('custom_components/zhangjiajie_water/const.py').read()
-          m = re.search(r'INTEGRATION_VERSION\s*=\s*[\"']([^\"']+)[\"']', content)
-          print(m.group(1))
-          ")
+          CONST_VER=$(python3 -c "import re; m=re.search(r'INTEGRATION_VERSION\s*=\s*[\x22\x27]([^\x22\x27]+)[\x22\x27]', open('custom_components/zhangjiajie_water/const.py').read()); print(m.group(1))")
           echo "Tag: $TAG_VER | Manifest: $MANIFEST_VER | Const: $CONST_VER"
           if [ "$TAG_VER" != "$MANIFEST_VER" ]; then
             echo "ERROR: Tag version ($TAG_VER) != manifest.json version ($MANIFEST_VER)"
