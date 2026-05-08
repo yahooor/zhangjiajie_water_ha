@@ -1,30 +1,14 @@
 /**
- * 张家界供水 Lovelace 卡片
+ * 张家界供水 Lovelace 卡片 v3.1.0
  * 基于 LitElement，无需构建
- * version: 3.0.1
+ * 仅依赖 HA 内置 Lit（2024.1+）
  *
- * 配置示例:
+ * 配置:
  *   type: custom:zhangjiajie-water-card
- *   # entity_prefix 可选，不填则自动检测
- *   # entity_prefix: sensor.zhang_jia_jie_gong_shui_xxxx
+ *   # entity_prefix 可选，自动检测
  */
 (() => {
-  // Lit 兼容层：优先从 HA 内置加载，fallback 到 unpkg CDN
-  let LitElement, html, css;
-  try {
-    // HA 2024.11+ 内置 Lit
-    const lit = window.require?.("lit") || {};
-    LitElement = lit.LitElement;
-    html = lit.html;
-    css = lit.css;
-  } catch (e) { /* ignore */ }
-
-  if (!LitElement) {
-    // 动态 import 兼容层（将在 load() 中处理）
-    console.info("[zjwater-card] 尝试加载 Lit 依赖...");
-  }
-
-  class ZhangjiajieWaterCard extends (LitElement || HTMLElement) {
+  class ZhangjiajieWaterCard extends HTMLElement {
     static get properties() {
       return {
         hass: { attribute: false },
@@ -37,26 +21,30 @@
       super();
       this._loading = false;
       this._entityPrefix = null;
+      this._shadow = this.attachShadow({ mode: "open" });
     }
 
     setConfig(config) {
-      // entity_prefix 可选，不填则自动检测
+      if (!config) throw new Error("无效的卡片配置");
       this.config = config;
     }
 
-    static get styles() {
-      if (typeof css === "undefined") return undefined;
-      return css`
-        :host {
-          display: block;
-        }
+    getCardSize() {
+      return 5;
+    }
+
+    _getStyles() {
+      const isDark = matchMedia("(prefers-color-scheme: dark)").matches
+        || document.querySelector("home-assistant")?.shadowRoot?.querySelector("ha-sidebar")?.classList.contains("dark");
+      return `
+        :host { display: block; }
         ha-card {
           padding: 0;
           overflow: hidden;
           border-radius: 12px;
         }
         .header {
-          background: linear-gradient(135deg, #1565c0, #42a5f5);
+          background: linear-gradient(135deg, var(--primary-color, #1565c0), var(--accent-color, #42a5f5));
           color: #fff;
           padding: 16px 16px 12px;
           display: flex;
@@ -64,58 +52,34 @@
           gap: 12px;
         }
         .header-logo {
-          width: 40px;
-          height: 40px;
+          width: 40px; height: 40px;
           border-radius: 8px;
           object-fit: contain;
           background: rgba(255,255,255,0.15);
           padding: 4px;
           flex-shrink: 0;
         }
-        .header-info {
-          flex: 1;
-          min-width: 0;
-        }
-        .header-title {
-          font-size: 1.05em;
-          font-weight: 600;
-          line-height: 1.2;
-        }
+        .header-info { flex: 1; min-width: 0; }
+        .header-title { font-size: 1.05em; font-weight: 600; line-height: 1.2; }
         .header-subtitle {
-          font-size: 0.8em;
-          opacity: 0.85;
-          margin-top: 2px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          font-size: 0.8em; opacity: 0.85; margin-top: 2px;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .refresh-btn {
           background: rgba(255,255,255,0.2);
-          border: none;
-          border-radius: 50%;
-          width: 36px;
-          height: 36px;
+          border: none; border-radius: 50%;
+          width: 36px; height: 36px;
           cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          display: flex; align-items: center; justify-content: center;
           color: #fff;
-          transition: background 0.2s, transform 0.3s;
+          transition: background 0.2s;
           flex-shrink: 0;
         }
-        .refresh-btn:hover {
-          background: rgba(255,255,255,0.35);
-        }
-        .refresh-btn.loading {
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
+        .refresh-btn:hover { background: rgba(255,255,255,0.35); }
+        .refresh-btn.loading { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .summary-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
+          display: grid; grid-template-columns: 1fr 1fr;
           border-bottom: 1px solid var(--divider-color, rgba(0,0,0,0.12));
         }
         .summary-item {
@@ -123,89 +87,62 @@
           border-right: 1px solid var(--divider-color, rgba(0,0,0,0.12));
           border-bottom: 1px solid var(--divider-color, rgba(0,0,0,0.12));
         }
-        .summary-item:nth-child(2n) {
-          border-right: none;
-        }
-        .summary-item:nth-last-child(-n+2) {
-          border-bottom: none;
-        }
+        .summary-item:nth-child(2n) { border-right: none; }
+        .summary-item:nth-last-child(-n+2) { border-bottom: none; }
         .summary-label {
           font-size: 0.72em;
           color: var(--secondary-text-color, #727272);
           margin-bottom: 4px;
-          display: flex;
-          align-items: center;
-          gap: 4px;
+          display: flex; align-items: center; gap: 4px;
         }
         .summary-value {
-          font-size: 1.2em;
-          font-weight: 700;
+          font-size: 1.2em; font-weight: 700;
           color: var(--primary-text-color, #212121);
           line-height: 1.1;
         }
-        .summary-value.highlight {
-          color: #1565c0;
-        }
+        .summary-value.highlight { color: var(--primary-color, #1565c0); }
         .summary-unit {
-          font-size: 0.65em;
-          font-weight: 400;
+          font-size: 0.65em; font-weight: 400;
           color: var(--secondary-text-color, #727272);
           margin-left: 2px;
         }
-        .details-section {
-          padding: 12px 16px;
-        }
+        .details-section { padding: 12px 16px; }
         .details-title {
-          font-size: 0.75em;
-          font-weight: 600;
+          font-size: 0.75em; font-weight: 600;
           color: var(--secondary-text-color, #727272);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          margin-bottom: 8px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          letter-spacing: 0.03em; margin-bottom: 8px;
+          display: flex; align-items: center; gap: 6px;
         }
         .detail-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
+          display: flex; justify-content: space-between; align-items: center;
           padding: 5px 0;
           border-bottom: 1px solid var(--divider-color, rgba(0,0,0,0.12));
           font-size: 0.85em;
         }
-        .detail-row:last-child {
-          border-bottom: none;
-        }
+        .detail-row:last-child { border-bottom: none; }
         .detail-label {
           color: var(--secondary-text-color, #727272);
-          display: flex;
-          align-items: center;
-          gap: 5px;
+          display: flex; align-items: center; gap: 5px;
         }
-        .detail-value {
-          color: var(--primary-text-color, #212121);
-          font-weight: 500;
-        }
+        .detail-value { color: var(--primary-text-color, #212121); font-weight: 500; }
         .update-time {
           font-size: 0.7em;
           color: var(--secondary-text-color, #727272);
           text-align: right;
           padding: 6px 16px 10px;
         }
+        .error-msg {
+          padding: 16px;
+          color: var(--error-color, #db4437);
+        }
       `;
     }
 
-    /**
-     * 自动检测实体前缀（扫描 hass.states 中匹配 balance 传感器的实体）
-     */
     _detectPrefix() {
       if (this.config?.entity_prefix) return this.config.entity_prefix;
       if (this._entityPrefix) return this._entityPrefix;
       if (!this.hass?.states) return null;
-
-      // 查找 sensor.*_balance 类型的实体（本集成特征）
-      for (const [id, state] of Object.entries(this.hass.states)) {
+      for (const id of Object.keys(this.hass.states)) {
         if (id.endsWith("_balance") && id.startsWith("sensor.")) {
           this._entityPrefix = id.replace(/_balance$/, "");
           return this._entityPrefix;
@@ -216,34 +153,30 @@
 
     _getEntityId(key) {
       const prefix = this._detectPrefix();
-      if (!prefix) return null;
-      return `${prefix}_${key}`;
+      return prefix ? `${prefix}_${key}` : null;
     }
 
     _getState(key) {
       const entityId = this._getEntityId(key);
       if (!entityId) return null;
       const entity = this.hass?.states[entityId];
-      if (!entity || entity.state === "unavailable" || entity.state === "unknown") {
-        return null;
-      }
+      if (!entity || entity.state === "unavailable" || entity.state === "unknown") return null;
       return entity;
     }
 
-    _getVal(key, fallback = "—") {
+    _getVal(key, fallback = "\u2014") {
       const entity = this._getState(key);
       if (!entity) return fallback;
       const val = entity.state;
-      if (val === null || val === undefined || val === "") return fallback;
-      return val;
+      return (val === null || val === undefined || val === "") ? fallback : val;
     }
 
     _getFriendlyName() {
       const entity = this._getState("balance");
       if (entity?.attributes?.friendly_name) {
-        return entity.attributes.friendly_name.replace("账户余额", "").trim() || "张家界供水";
+        return entity.attributes.friendly_name.replace("\u8d26\u6237\u4f59\u989d", "").trim() || "\u5f20\u5bb6\u754c\u4f9b\u6c34";
       }
-      return this.config?.title || "张家界供水";
+      return this.config?.title || "\u5f20\u5bb6\u754c\u4f9b\u6c34";
     }
 
     _getUpdateTime() {
@@ -251,192 +184,148 @@
       if (!entity?.last_updated) return "";
       try {
         const dt = new Date(entity.last_updated);
-        return `更新于 ${dt.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
-      } catch {
-        return "";
-      }
+        return `\u66f4\u65b0\u4e8e ${dt.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+      } catch { return ""; }
     }
 
-    async _handleRefresh(e) {
-      e.stopPropagation();
+    async _handleRefresh() {
       if (this._loading) return;
       this._loading = true;
+      this._render();
       try {
-        // 查找刷新按钮实体（button.*_refresh_data）
-        const btnEntity = Object.keys(this.hass.states).find(
-          id => id.startsWith("button.") && id.endsWith("_refresh_data")
-        );
-        if (btnEntity) {
-          await this.hass.callService("button", "press", { entity_id: btnEntity });
+        const prefix = this._detectPrefix();
+        // 精确匹配：从 sensor 前缀推导 button 实体 ID
+        const btnId = prefix
+          ? `button.${prefix.replace(/^sensor\./, "")}_refresh_data`
+          : null;
+        if (btnId && this.hass.states[btnId]) {
+          await this.hass.callService("button", "press", { entity_id: btnId });
         } else {
-          // 回退：触发实体更新
           const balanceId = this._getEntityId("balance");
           if (balanceId) {
             await this.hass.callService("homeassistant", "update_entity", { entity_id: balanceId });
           }
         }
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // 智能等待：轮询检查实体更新或超时 10s
+        await new Promise(resolve => {
+          const start = Date.now();
+          const check = () => {
+            const entity = this._getState("balance");
+            const elapsed = Date.now() - start;
+            if ((entity && new Date(entity.last_updated).getTime() > start - 2000) || elapsed > 10000) {
+              resolve();
+            } else {
+              setTimeout(check, 500);
+            }
+          };
+          setTimeout(check, 500);
+        });
       } catch (err) {
-        console.warn("[zjwater-card] 刷新失败:", err);
+        console.warn("[zjwater-card] \u5237\u65b0\u5931\u8d25:", err);
       } finally {
         this._loading = false;
+        this._render();
       }
     }
 
     _fmt(val, decimals = 2) {
       const n = parseFloat(val);
-      if (isNaN(n)) return "—";
-      return n.toFixed(decimals);
+      return isNaN(n) ? "\u2014" : n.toFixed(decimals);
     }
 
-    render() {
-      if (!this.hass || !this.config) return html`<ha-card><div style="padding:16px">加载中...</div></ha-card>`;
+    connectedCallback() { this._render(); }
 
-      // 自动检测前缀
+    set hass(hass) {
+      this._hass = hass;
+      this._render();
+    }
+    get hass() { return this._hass; }
+
+    _render() {
+      if (!this._hass || !this.config) {
+        this._shadow.innerHTML = `<style>${this._getStyles()}</style><ha-card><div class="error-msg">\u52a0\u8f7d\u4e2d...</div></ha-card>`;
+        return;
+      }
       const prefix = this._detectPrefix();
       if (!prefix) {
-        return html`<ha-card><div style="padding:16px;color:var(--error-color)">未找到张家界供水传感器实体。请确认集成已正确配置，或在卡片中指定 entity_prefix。</div></ha-card>`;
+        this._shadow.innerHTML = `<style>${this._getStyles()}</style><ha-card><div class="error-msg">\u672a\u627e\u5230\u5f20\u5bb6\u754c\u4f9b\u6c34\u4f20\u611f\u5668\u5b9e\u4f53\u3002\u8bf7\u786e\u8ba4\u96c6\u6210\u5df2\u914d\u7f6e\uff0c\u6216\u6307\u5b9a entity_prefix\u3002</div></ha-card>`;
+        return;
       }
 
-      const balance = this._getVal("balance");
-      const usage = this._getVal("current_usage");
+      const b = this._getVal("balance");
+      const u = this._getVal("current_usage");
       const bill = this._getVal("current_bill");
-      const annualUsage = this._getVal("annual_usage");
-      const readingMonth = this._getVal("latest_reading_month");
-      const waterFee = this._getVal("current_water_fee");
-      const sewageFee = this._getVal("sewage_fee");
-      const garbageFee = this._getVal("garbage_fee");
-      const otherFees = this._getVal("other_fees");
-      const lastPayDate = this._getVal("last_payment_date");
-      const lastPayAmt = this._getVal("last_payment_amount");
-      const annualBill = this._getVal("annual_bill");
-      const logoUrl = this.config.logo_url || "/local/zhangjiajie_water/logo.png";
+      const au = this._getVal("annual_usage");
+      const rm = this._getVal("latest_reading_month");
+      const wf = this._getVal("current_water_fee");
+      const sf = this._getVal("sewage_fee");
+      const gf = this._getVal("garbage_fee");
+      const of = this._getVal("other_fees");
+      const lpd = this._getVal("last_payment_date");
+      const lpa = this._getVal("last_payment_amount");
+      const ab = this._getVal("annual_bill");
+      const logo = this.config.logo_url || "/local/zhangjiajie_water/logo.png";
+      const loading = this._loading ? " loading" : "";
 
-      return html`
-        <ha-card>
-          <div class="header">
-            <img class="header-logo" src="${logoUrl}" alt="logo" @error=${e => e.target.style.display='none'}>
-            <div class="header-info">
-              <div class="header-title">${this._getFriendlyName()}</div>
-              <div class="header-subtitle">张家界市自来水有限责任公司</div>
-            </div>
-            <button class="refresh-btn ${this._loading ? 'loading' : ''}" @click=${this._handleRefresh} title="刷新数据">
-              <ha-icon icon="mdi:refresh" style="--mdc-icon-size:20px"></ha-icon>
-            </button>
-          </div>
+      this._shadow.innerHTML = `<style>${this._getStyles()}</style>
+<ha-card>
+  <div class="header">
+    <img class="header-logo" src="${logo}" alt="logo" onerror="this.style.display='none'">
+    <div class="header-info">
+      <div class="header-title">${this._getFriendlyName()}</div>
+      <div class="header-subtitle">\u5f20\u5bb6\u754c\u5e02\u81ea\u6765\u6c34\u6709\u9650\u8d23\u4efb\u516c\u53f8</div>
+    </div>
+    <button class="refresh-btn${loading}" title="\u5237\u65b0\u6570\u636e">
+      <ha-icon icon="mdi:refresh" style="--mdc-icon-size:20px"></ha-icon>
+    </button>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-item">
+      <div class="summary-label"><ha-icon icon="mdi:cash" style="--mdc-icon-size:14px;color:var(--primary-color,#1565c0)"></ha-icon>\u8d26\u6237\u4f59\u989d</div>
+      <div class="summary-value highlight">${this._fmt(b)}<span class="summary-unit">\u5143</span></div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label"><ha-icon icon="mdi:water" style="--mdc-icon-size:14px;color:#1976d2"></ha-icon>\u672c\u671f\u7528\u6c34</div>
+      <div class="summary-value">${this._fmt(u, 1)}<span class="summary-unit">m\u00b3</span></div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label"><ha-icon icon="mdi:currency-cny" style="--mdc-icon-size:14px;color:#e65100"></ha-icon>\u672c\u671f\u8d39\u7528</div>
+      <div class="summary-value">${this._fmt(bill)}<span class="summary-unit">\u5143</span></div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label"><ha-icon icon="mdi:chart-bar" style="--mdc-icon-size:14px;color:#388e3c"></ha-icon>\u5e74\u7d2f\u8ba1\u7528\u6c34</div>
+      <div class="summary-value">${this._fmt(au, 1)}<span class="summary-unit">m\u00b3</span></div>
+    </div>
+  </div>
+  <div class="details-section">
+    <div class="details-title"><ha-icon icon="mdi:format-list-bulleted" style="--mdc-icon-size:14px"></ha-icon>\u8d39\u7528\u660e\u7ec6\uff08${rm}\uff09</div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:water-outline" style="--mdc-icon-size:14px"></ha-icon>\u6c34\u8d39</span><span class="detail-value">${this._fmt(wf)} \u5143</span></div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:water-pump" style="--mdc-icon-size:14px"></ha-icon>\u6c61\u6c34\u5904\u7406\u8d39</span><span class="detail-value">${this._fmt(sf)} \u5143</span></div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:trash-can-outline" style="--mdc-icon-size:14px"></ha-icon>\u5783\u573e\u5904\u7406\u8d39</span><span class="detail-value">${this._fmt(gf)} \u5143</span></div>
+    ${parseFloat(of) > 0 ? `<div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:receipt-text-outline" style="--mdc-icon-size:14px"></ha-icon>\u5176\u4ed6\u8d39\u7528</span><span class="detail-value">${this._fmt(of)} \u5143</span></div>` : ""}
+  </div>
+  <div class="details-section" style="padding-top:0">
+    <div class="details-title"><ha-icon icon="mdi:history" style="--mdc-icon-size:14px"></ha-icon>\u4e0a\u6b21\u7f34\u8d39</div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:calendar" style="--mdc-icon-size:14px"></ha-icon>\u7f34\u8d39\u65e5\u671f</span><span class="detail-value">${lpd}</span></div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:cash-100" style="--mdc-icon-size:14px"></ha-icon>\u7f34\u8d39\u91d1\u989d</span><span class="detail-value">${this._fmt(lpa)} \u5143</span></div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:currency-cny" style="--mdc-icon-size:14px"></ha-icon>\u5e74\u7d2f\u8ba1\u6c34\u8d39</span><span class="detail-value">${this._fmt(ab)} \u5143</span></div>
+  </div>
+  <div class="update-time">${this._getUpdateTime()}</div>
+</ha-card>`;
 
-          <div class="summary-grid">
-            <div class="summary-item">
-              <div class="summary-label">
-                <ha-icon icon="mdi:cash" style="--mdc-icon-size:14px;color:#1565c0"></ha-icon>账户余额
-              </div>
-              <div class="summary-value highlight">
-                ${this._fmt(balance)}<span class="summary-unit">元</span>
-              </div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">
-                <ha-icon icon="mdi:water" style="--mdc-icon-size:14px;color:#1976d2"></ha-icon>本期用水
-              </div>
-              <div class="summary-value">
-                ${this._fmt(usage, 1)}<span class="summary-unit">m³</span>
-              </div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">
-                <ha-icon icon="mdi:currency-cny" style="--mdc-icon-size:14px;color:#e65100"></ha-icon>本期费用
-              </div>
-              <div class="summary-value">
-                ${this._fmt(bill)}<span class="summary-unit">元</span>
-              </div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">
-                <ha-icon icon="mdi:chart-bar" style="--mdc-icon-size:14px;color:#388e3c"></ha-icon>年累计用水
-              </div>
-              <div class="summary-value">
-                ${this._fmt(annualUsage, 1)}<span class="summary-unit">m³</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="details-section">
-            <div class="details-title">
-              <ha-icon icon="mdi:format-list-bulleted" style="--mdc-icon-size:14px"></ha-icon>费用明细（${readingMonth}）
-            </div>
-            <div class="detail-row">
-              <span class="detail-label"><ha-icon icon="mdi:water-outline" style="--mdc-icon-size:14px"></ha-icon>水费</span>
-              <span class="detail-value">${this._fmt(waterFee)} 元</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label"><ha-icon icon="mdi:water-pump" style="--mdc-icon-size:14px"></ha-icon>污水处理费</span>
-              <span class="detail-value">${this._fmt(sewageFee)} 元</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label"><ha-icon icon="mdi:trash-can-outline" style="--mdc-icon-size:14px"></ha-icon>垃圾处理费</span>
-              <span class="detail-value">${this._fmt(garbageFee)} 元</span>
-            </div>
-            ${parseFloat(otherFees) > 0 ? html`
-            <div class="detail-row">
-              <span class="detail-label"><ha-icon icon="mdi:receipt-text-outline" style="--mdc-icon-size:14px"></ha-icon>其他费用</span>
-              <span class="detail-value">${this._fmt(otherFees)} 元</span>
-            </div>` : ""}
-          </div>
-
-          <div class="details-section" style="padding-top:0">
-            <div class="details-title">
-              <ha-icon icon="mdi:history" style="--mdc-icon-size:14px"></ha-icon>上次缴费
-            </div>
-            <div class="detail-row">
-              <span class="detail-label"><ha-icon icon="mdi:calendar" style="--mdc-icon-size:14px"></ha-icon>缴费日期</span>
-              <span class="detail-value">${lastPayDate}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label"><ha-icon icon="mdi:cash-100" style="--mdc-icon-size:14px"></ha-icon>缴费金额</span>
-              <span class="detail-value">${this._fmt(lastPayAmt)} 元</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label"><ha-icon icon="mdi:currency-cny" style="--mdc-icon-size:14px"></ha-icon>年累计水费</span>
-              <span class="detail-value">${this._fmt(annualBill)} 元</span>
-            </div>
-          </div>
-
-          <div class="update-time">${this._getUpdateTime()}</div>
-        </ha-card>
-      `;
+      const btn = this._shadow.querySelector(".refresh-btn");
+      if (btn) btn.addEventListener("click", () => this._handleRefresh());
     }
   }
 
-  // 尝试从多个 Lit 来源初始化
-  function initCard() {
-    // 如果 LitElement 已可用，直接注册
-    customElements.define("zhangjiajie-water-card", ZhangjiajieWaterCard);
-    window.customCards = window.customCards || [];
-    window.customCards.push({
-      type: "zhangjiajie-water-card",
-      name: "张家界供水卡片",
-      description: "显示张家界市自来水账单、余额、用水量等信息",
-      preview: false,
-      documentationURL: "https://github.com/yahooor/zhangjiajie_water_ha",
-    });
-    console.info("[zjwater-card] 卡片已注册");
-  }
-
-  // 检测 Lit 可用性后初始化
-  if (LitElement) {
-    initCard();
-  } else {
-    // 延迟加载：等待 HA 前端 Lit 加载完成
-    import("https://unpkg.com/lit@2/index.js?module").then((lit) => {
-      LitElement = lit.LitElement;
-      html = lit.html;
-      css = lit.css;
-      // 用获取到的 Lit 重新定义 class
-      console.info("[zjwater-card] Lit 从 CDN 加载成功");
-      initCard();
-    }).catch((err) => {
-      console.warn("[zjwater-card] Lit 加载失败，尝试用原生 HTMLElement:", err);
-      initCard();
-    });
-  }
+  customElements.define("zhangjiajie-water-card", ZhangjiajieWaterCard);
+  window.customCards = window.customCards || [];
+  window.customCards.push({
+    type: "zhangjiajie-water-card",
+    name: "\u5f20\u5bb6\u754c\u4f9b\u6c34\u5361\u7247",
+    description: "\u663e\u793a\u5f20\u5bb6\u754c\u5e02\u81ea\u6765\u6c34\u8d26\u5355\u3001\u4f59\u989d\u3001\u7528\u6c34\u91cf\u7b49\u4fe1\u606f",
+    preview: false,
+    documentationURL: "https://github.com/yahooor/zhangjiajie_water_ha",
+  });
+  console.info("[zjwater-card] v3.1.0 registered (native HTMLElement, no external deps)");
 })();

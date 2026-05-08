@@ -19,11 +19,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# OptionsFlow 中下拉选项的映射（key=存储值, value=显示标签）
-UPDATE_MODE_OPTIONS = {
-    UPDATE_MODE_INTERVAL: "固定间隔（每 N 小时刷新）",
-    UPDATE_MODE_DAILY: "每日定时（每天指定时间刷新）",
-}
+UPDATE_MODE_OPTIONS = [UPDATE_MODE_INTERVAL, UPDATE_MODE_DAILY]
 
 
 class ZhangjiajieWaterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -107,6 +103,6 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={
                 "update_interval": str(current_interval),
                 "daily_hour": str(current_hour),
-                "daily_minute": str(current_minute),
+                "daily_minute": f"{current_minute:02d}",
             },
         )

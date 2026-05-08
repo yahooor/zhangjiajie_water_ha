@@ -11,7 +11,7 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.device_registry import DeviceInfo
 
-from .api import ZhangjiajieWaterAPI, _safe_float
+from .api import ZhangjiajieWaterAPI
 from .const import (
     DOMAIN,
     INTEGRATION_VERSION,
@@ -24,6 +24,14 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 _TZ_SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def _safe_float(value, default: float | None = 0.0) -> float | None:
+    """安全转换 float，非法值返回 default"""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
 
 
 class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
@@ -173,7 +181,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
 
     async def _fetch_usage(self) -> dict:
         """获取用水月报，逐条过滤本年记录"""
-        current_year = str(datetime.now().year)
+        current_year = str(datetime.now(_TZ_SHANGHAI).year)
         all_records: list = []
         page = 1
         while page <= 20:  # 安全上限，防止脏数据死循环
@@ -262,7 +270,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         }
 
     def _merge_data(self, usage: dict, payment: dict) -> dict:
-        current_year = str(datetime.now().year)
+        current_year = str(datetime.now(_TZ_SHANGHAI).year)
         annual = 0.0
         annual_bill = 0.0
         for rec in usage.get("_usage_records", []):

@@ -146,6 +146,7 @@ SENSOR_DESCRIPTIONS: tuple[ZhangjiajieWaterSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: d.get("previous_month_reading"),
     ),
+    # latest_reading 与 current_month_reading 值相同但语义不同，保留兼容
     ZhangjiajieWaterSensorEntityDescription(
         key="latest_reading",
         name="最新读数",

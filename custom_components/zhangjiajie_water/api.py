@@ -14,14 +14,6 @@ from .const import BASE_URL, API_PATH
 _LOGGER = logging.getLogger(__name__)
 
 
-def _safe_float(value, default: float | None = 0.0) -> float | None:
-    """安全转换 float，非法值返回 default"""
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
-
-
 class ZhangjiajieWaterAPI:
     """张家界水务 API 客户端"""
 
@@ -132,4 +124,5 @@ class ZhangjiajieWaterAPI:
                     e,
                 )
                 await asyncio.sleep(wait)
-        raise last_error  # type: ignore[misc]
+        assert last_error is not None  # 循环至少执行一次
+        raise last_error
