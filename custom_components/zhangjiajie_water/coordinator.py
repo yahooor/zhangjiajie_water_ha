@@ -110,6 +110,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         if self._daily_unsub is not None:
             self._daily_unsub()
             self._daily_unsub = None
+        await self.api.async_close()
         await super().async_shutdown()
 
     async def _async_update_data(self) -> dict:

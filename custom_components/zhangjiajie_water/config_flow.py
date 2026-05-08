@@ -19,6 +19,12 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# OptionsFlow 中下拉选项的映射（key=存储值, value=显示标签）
+UPDATE_MODE_OPTIONS = {
+    UPDATE_MODE_INTERVAL: "固定间隔（每 N 小时刷新）",
+    UPDATE_MODE_DAILY: "每日定时（每天指定时间刷新）",
+}
+
 
 async def async_migrate_entry(hass, config_entry: config_entries.ConfigEntry) -> bool:
     """迁移旧版本 ConfigEntry 到最新版本。"""
@@ -88,18 +94,25 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required(CONF_UPDATE_MODE, default=current_mode): vol.In(
-                    [UPDATE_MODE_INTERVAL, UPDATE_MODE_DAILY]
-                ),
-                vol.Optional("update_interval", default=current_interval): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=24)
-                ),
-                vol.Optional(CONF_DAILY_HOUR, default=current_hour): vol.All(
-                    vol.Coerce(int), vol.Range(min=0, max=23)
-                ),
-                vol.Optional(CONF_DAILY_MINUTE, default=current_minute): vol.All(
-                    vol.Coerce(int), vol.Range(min=0, max=59)
-                ),
+                vol.Required(
+                    CONF_UPDATE_MODE,
+                    default=current_mode,
+                ): vol.In(UPDATE_MODE_OPTIONS),
+                vol.Optional(
+                    "update_interval",
+                    default=current_interval,
+                    description={"suggested_value": current_interval},
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
+                vol.Optional(
+                    CONF_DAILY_HOUR,
+                    default=current_hour,
+                    description={"suggested_value": current_hour},
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
+                vol.Optional(
+                    CONF_DAILY_MINUTE,
+                    default=current_minute,
+                    description={"suggested_value": current_minute},
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
             }),
             description_placeholders={
                 "update_interval": str(current_interval),
