@@ -104,7 +104,39 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 - OpenID 与微信号绑定，更换微信需重新获取
 - 数据来自供水公司微信公众号接口，仅供个人使用
 
+## Lovelace 卡片
+
+v3.0.0 起内置自定义 Lovelace 卡片，安装集成后无需额外配置即可使用。
+
+### 卡片配置
+
+```yaml
+type: custom:zhangjiajie-water-card
+# entity_prefix 为传感器前缀，通常无需修改（自动推断）
+# entity_prefix: sensor.zhang_jia_jie_gong_shui_<户号末4位>
+```
+
+### 刷新模式
+
+在集成选项（设置 → 设备与服务 → 张家界供水 → 配置）中可选择：
+
+| 模式 | 说明 |
+|------|------|
+| **固定间隔**（默认） | 每 N 小时刷新一次（1~24 小时可调） |
+| **每日定时** | 每天指定时间（默认 07:30）刷新一次，适合节省流量 |
+
 ## 更新日志
+
+### v3.0.0 (2026-05-08)
+
+- **架构重构**：代码拆分为 `api.py`（API 客户端）+ `coordinator.py`（数据协调器）+ `__init__.py`（精简入口）
+- **混合刷新模式**：支持"每日定时"（`async_track_time_change`）和"固定间隔"两种刷新策略，可在选项中切换
+- **SensorEntityDescription 重构**：传感器使用 `@dataclass + value_fn` 模式，代码更简洁、可扩展
+- **内置 Lovelace 卡片**：新增 `www/zhangjiajie-water-card.js`（LitElement，无需构建），展示余额/用水/费用/年累计等信息
+- **ConfigEntry VERSION 升至 2**：添加 `async_migrate_entry` 自动迁移旧版配置，现有用户升级无感
+- **coordinator.async_shutdown()**：卸载时正确清理每日定时监听器，避免内存泄漏
+- **OptionsFlow 扩展**：新增刷新模式、定时小时、定时分钟配置项
+- 借鉴 [合肥供水集成](https://github.com/Cyborg2017/ha_hfwater) 最佳实践
 
 ### [v2.7.0](https://github.com/yahooor/zhangjiajie_water_ha/releases/tag/v2.7.0) (2026-05-08)
 

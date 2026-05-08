@@ -1,10 +1,13 @@
 """张家界供水 按钮平台 - 手动刷新数据"""
 import logging
+
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
+
 from .const import DOMAIN
+from .coordinator import ZhangjiajieWaterCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +43,9 @@ class RefreshWaterDataButton(ButtonEntity):
 
     async def async_press(self) -> None:
         """按钮按下：触发 coordinator 刷新"""
-        coordinator = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
+        coordinator: ZhangjiajieWaterCoordinator | None = self.hass.data.get(DOMAIN, {}).get(
+            self._config_entry.entry_id
+        )
         if coordinator is None:
             _LOGGER.error("Coordinator 未初始化，无法刷新")
             return
