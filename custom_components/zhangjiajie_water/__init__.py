@@ -5,11 +5,21 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_UPDATE_MODE, UPDATE_MODE_INTERVAL
 from .coordinator import ZhangjiajieWaterCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["sensor", "button"]
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """迁移旧版本 ConfigEntry 到最新版本。"""
+    _LOGGER.debug("迁移 ConfigEntry: v%s → v2", entry.version)
+    if entry.version == 1:
+        # v1 → v2: options 中新增 update_mode 字段，默认 interval（保持原行为）
+        new_options = {**entry.options, CONF_UPDATE_MODE: UPDATE_MODE_INTERVAL}
+        hass.config_entries.async_update_entry(entry, options=new_options, version=2)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

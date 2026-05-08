@@ -26,16 +26,6 @@ UPDATE_MODE_OPTIONS = {
 }
 
 
-async def async_migrate_entry(hass, config_entry: config_entries.ConfigEntry) -> bool:
-    """迁移旧版本 ConfigEntry 到最新版本。"""
-    _LOGGER.debug("迁移 ConfigEntry: v%s → v2", config_entry.version)
-    if config_entry.version == 1:
-        # v1 → v2: options 中新增 update_mode 字段，默认 interval（保持原行为）
-        new_options = {**config_entry.options, CONF_UPDATE_MODE: UPDATE_MODE_INTERVAL}
-        hass.config_entries.async_update_entry(config_entry, options=new_options, version=2)
-    return True
-
-
 class ZhangjiajieWaterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 2
 
