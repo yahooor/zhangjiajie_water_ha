@@ -1,9 +1,1 @@
-{
-  "name": "张家界供水",
-  "content_in_root": false,
-  "country": [
-    "CN"
-  ],
-  "homeassistant": "2024.1.0",
-  "render_readme": true
-}
+{"name":"张家界供水","content_in_root":false,"country":["CN"],"homeassistant":"2024.1.0","render_readme_as_markdown":true}
