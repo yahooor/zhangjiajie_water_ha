@@ -297,6 +297,9 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             "annual_usage": round(annual, 2),
             "annual_bill": round(annual_bill, 2),
             "_year": current_year,  # 供 sensor 层读取当前年份
+            # 原始记录供 sensor 层 attributes_fn 使用（逐月历史/最近缴费）
+            "_usage_records": usage.get("_usage_records", []),
+            "_payment_records": payment.get("_payment_records", []),
         }
         _LOGGER.debug("合并数据: %s", merged)
         return merged

@@ -45,16 +45,26 @@ def _usage_history(data: dict) -> dict[str, Any]:
 
 
 def _payment_history(data: dict) -> dict[str, Any]:
-    """最近缴费记录（挂在上次缴费金额传感器的属性上）"""
+    """最近缴费记录（挂在上次缴费金额传感器的属性上）。
+
+    上游 type=2 记录包含人工缴费与账单自动扣款两种：扣款记录的
+    jfje（缴费金额）为 0，实际扣款额 = 上次结余 − 本次余额（负数）。
+    """
+    out = []
+    for rec in data.get("_payment_records", [])[:5]:
+        after = safe_float(rec.get("bcye"), None)
+        before = safe_float(rec.get("scye"), None)
+        change = round(after - before, 2) if after is not None and before is not None else None
+        out.append({
+            "time": rec.get("sfsj", ""),
+            "amount": safe_float(rec.get("jfje"), None),
+            "balance_before": before,
+            "balance_after": after,
+            "balance_change": change,
+        })
     return {
-        "recent_payments": [
-            {
-                "time": rec.get("sfsj", ""),
-                "amount": safe_float(rec.get("jfje"), None),
-                "balance_after": safe_float(rec.get("bcye"), None),
-            }
-            for rec in data.get("_payment_records", [])[:5]
-        ]
+        "recent_payments": out,
+        "note": "amount 为 0 的记录是账单自动扣款（非人工缴费），实际扣款额见 balance_change（负值）",
     }
 
 
