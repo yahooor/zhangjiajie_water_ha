@@ -1,12 +1,17 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  release:
+    types: [published]
+
+# 说明：GitHub 自 2025 年起发布资产不可变（已发布的 Release 不能再上传资产），
+# 仓库的 tag 保护规则又限制 git/API 直接建 tag（tag 只能随 Release 创建），
+# 因此本流水线只做发布后校验；ZIP 资产不再提供，手动安装可用
+# Release 页自带的 "Source code (zip)"（HACS 安装不受影响）。
 
 jobs:
   validate:
-    name: "发布前验证"
+    name: "发布后验证"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,33 +42,3 @@ jobs:
 
       - name: Hassfest 验证
         uses: home-assistant/actions/hassfest@master
-
-  attach-zip:
-    name: "创建 Release 并上传 ZIP"
-    runs-on: ubuntu-latest
-    needs: validate
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 打包 ZIP
-        run: |
-          cd custom_components/zhangjiajie_water
-          # ../../ 回到仓库根（workspace），zip 必须落在 workspace 内才能上传
-          zip -r ../../zhangjiajie_water.zip ./
-
-      # GitHub 发布资产不可变：已发布的 Release 不允许再上传资产，
-      # 必须先建草稿 → 上传 ZIP → 再发布
-      - name: 草稿创建 Release 并上传 ZIP 后发布
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          gh release create "$TAG" --draft \
-            --title "$TAG" \
-            --notes "更新日志见 README: https://github.com/yahooor/zhangjiajie_water_ha#更新日志"
-          gh release upload "$TAG" zhangjiajie_water.zip
-          gh release edit "$TAG" --draft=false
-          echo "Release published with assets:"
-          gh release view "$TAG" --json assets --jq '.assets[].name'

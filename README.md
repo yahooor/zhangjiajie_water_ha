@@ -27,9 +27,11 @@ Home Assistant 自定义集成，通过抓取张家界供水微信公众号获�
 
 ### 手动安装
 
-1. 下载 [最新版本](https://github.com/yahooor/zhangjiajie_water_ha/releases/latest)
-2. 解压到 `custom_components/zhangjiajie_water/` 目录
+1. 下载 [最新版本](https://github.com/yahooor/zhangjiajie_water_ha/releases/latest) 页面的 **Source code (zip)**
+2. 解压后把其中的 `custom_components/zhangjiajie_water/` 复制到 HA 配置目录的 `custom_components/` 下
 3. 重启 Home Assistant
+
+> 注：自 2025 年起 GitHub 发布资产不可变，Release 不再额外附带集成专用 ZIP；HACS 安装不受影响。
 
 ## 配置
 
