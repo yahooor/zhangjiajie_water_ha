@@ -15,7 +15,7 @@
       "invalid_account": "Invalid account number format",
       "invalid_openid": "Invalid OpenID format",
       "cannot_connect": "Cannot connect to water supply server",
-      "no_data": "No water usage data found, please verify account and OpenID"
+      "no_data": "Account number or OpenID rejected by the server, please verify them"
     },
     "abort": {
       "already_configured": "This account is already configured"
@@ -30,22 +30,16 @@
           "update_mode": "Refresh mode",
           "update_interval": "Refresh interval (hours)",
           "daily_hour": "Daily refresh hour (0-23)",
-          "daily_minute": "Daily refresh minute (0-59)"
+          "daily_minute": "Daily refresh minute (0-59)",
+          "low_balance_threshold": "Low balance threshold (CNY, 0 = disabled)"
         },
         "data_description": {
           "update_mode": "Choose how data is refreshed",
           "update_interval": "Only effective in interval mode",
           "daily_hour": "Only effective in daily mode",
-          "daily_minute": "Only effective in daily mode"
+          "daily_minute": "Only effective in daily mode",
+          "low_balance_threshold": "The 'Low balance' binary sensor turns on when balance drops below this value"
         }
-      }
-    }
-  },
-  "selector": {
-    "update_mode": {
-      "options": {
-        "interval": "Fixed interval (refresh every N hours)",
-        "daily": "Daily schedule (refresh at a specific time)"
       }
     }
   }

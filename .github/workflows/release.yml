@@ -16,7 +16,9 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           TAG_VER="${TAG#v}"
           MANIFEST_VER=$(python3 -c "import json; print(json.load(open('custom_components/zhangjiajie_water/manifest.json'))['version'])")
-          CONST_VER=$(python3 -c "import re; m=re.search(r'INTEGRATION_VERSION\s*=\s*[\x22\x27]([^\x22\x27]+)[\x22\x27]', open('custom_components/zhangjiajie_water/const.py').read()); print(m.group(1))")
+          # const.py 自 v3.1.0 起从 manifest.json 读取版本（无字面量），改为直接 import
+          # （const.py 仅依赖标准库，可脱离 HA 独立导入）
+          CONST_VER=$(python3 -c "import sys; sys.path.insert(0, 'custom_components/zhangjiajie_water'); from const import INTEGRATION_VERSION; print(INTEGRATION_VERSION)")
           echo "Tag: $TAG_VER | Manifest: $MANIFEST_VER | Const: $CONST_VER"
           if [ "$TAG_VER" != "$MANIFEST_VER" ]; then
             echo "ERROR: Tag version ($TAG_VER) != manifest.json version ($MANIFEST_VER)"

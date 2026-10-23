@@ -7,11 +7,25 @@ import logging
 import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .const import BASE_URL, API_PATH
 
 _LOGGER = logging.getLogger(__name__)
+
+# HA 共享 session 默认超时长达 5 分钟，必须按请求覆盖
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=20)
+
+
+class ZhangjiajieWaterApiError(Exception):
+    """API 请求通用错误"""
+
+
+class ZhangjiajieWaterApiConnectionError(ZhangjiajieWaterApiError):
+    """网络 / 服务端错误"""
+
+
+class ZhangjiajieWaterApiAuthError(ZhangjiajieWaterApiError):
+    """业务错误（户号或 OpenID 无效等，重试无意义）"""
 
 
 class ZhangjiajieWaterAPI:
@@ -38,7 +52,7 @@ class ZhangjiajieWaterAPI:
         if self._hass is not None:
             return async_get_clientsession(self._hass)
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))
+            self._session = aiohttp.ClientSession(timeout=REQUEST_TIMEOUT)
         return self._session
 
     def _make_custcode(self, page: int) -> str:
@@ -68,6 +82,17 @@ class ZhangjiajieWaterAPI:
             ),
         }
 
+    async def async_test_connection(self) -> int:
+        """验证凭据有效性（配置流程调用），返回最新缴费记录条数。
+
+        0 条记录也视为凭据有效（新账户可能尚无缴费）。
+        使用 retries=1 避免配置流程长时间等待。
+        """
+        data = await self._post(
+            f"{self.base_url}{self.api_path}", self._make_form(2, 1), retries=1
+        )
+        return len(data.get("data") or [])
+
     async def fetch_usage_records(self, page: int = 1) -> list:
         """获取 type=1 用水记录（分页）"""
         url = f"{self.base_url}{self.api_path}"
@@ -85,36 +110,47 @@ class ZhangjiajieWaterAPI:
     async def _post(self, url: str, form: dict, retries: int = 3) -> dict:
         """POST 请求，带重试"""
         if self._closed:
-            raise UpdateFailed("API 客户端已关闭")
+            raise ZhangjiajieWaterApiError("API 客户端已关闭")
         last_error: Exception | None = None
         for attempt in range(retries):
             non_retryable = False
             try:
                 session = await self._get_session()
-                async with session.post(url, data=form, headers=self.headers) as resp:
+                async with session.post(
+                    url, data=form, headers=self.headers, timeout=REQUEST_TIMEOUT
+                ) as resp:
                     text = await resp.text()
                     if resp.status != 200:
                         # HTTP 4xx 客户端错误不应重试（如 401/403/404）
                         if 400 <= resp.status < 500:
                             non_retryable = True
-                        raise Exception(f"API HTTP {resp.status}: {text[:200]}")
+                        raise ZhangjiajieWaterApiConnectionError(
+                            f"API HTTP {resp.status}: {text[:200]}"
+                        )
                 try:
                     result = json.loads(text)
                 except (json.JSONDecodeError, ValueError):
                     # 非 JSON 响应（如 502 网关错误页面），重试无意义
                     non_retryable = True
-                    raise Exception(f"API 返回非 JSON 响应: {text[:200]}")
+                    raise ZhangjiajieWaterApiConnectionError(
+                        f"API 返回非 JSON 响应: {text[:200]}"
+                    ) from None
                 if result.get("res") != 100:
                     # API 业务错误（如户号错误），重试无意义
                     non_retryable = True
                     msg = result.get("msg", "")
                     detail = f" - {msg}" if msg else ""
-                    raise Exception(f"API 返回错误码 {result.get('res')}{detail}")
+                    raise ZhangjiajieWaterApiAuthError(
+                        f"API 返回错误码 {result.get('res')}{detail}"
+                    )
                 return result
             except Exception as e:
                 last_error = e
                 if non_retryable or attempt >= retries - 1:
-                    raise
+                    # 统一包装为类型化异常（网络层原始异常如 ClientError/超时）
+                    if isinstance(e, ZhangjiajieWaterApiError):
+                        raise
+                    raise ZhangjiajieWaterApiConnectionError(f"API 请求失败: {e}") from e
                 wait = 2 ** attempt
                 _LOGGER.warning(
                     "API 请求失败 (第 %d/%d 次)，%d 秒后重试: %s",

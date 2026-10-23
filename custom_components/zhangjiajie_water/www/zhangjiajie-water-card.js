@@ -1,41 +1,220 @@
 /**
- * 张家界供水 Lovelace 卡片 v3.1.0
- * 基于 LitElement，无需构建
- * 仅依赖 HA 内置 Lit（2024.1+）
+ * 张家界供水 Lovelace 卡片 v3.2.0
+ * 原生 HTMLElement 实现，无外部依赖。
+ *
+ * 实体发现（v3.2.0 起基于实体注册表，中英文实体名均可识别）：
+ *   1. 通过 config/entity_registry/list 找到本集成（platform=zhangjiajie_water）全部实体，
+ *      从 unique_id（格式 "{entry_id}_{key}"，entry_id 不含下划线）解析出 key → entity_id 映射；
+ *   2. 多账户时可通过 config.entity 指定该账户下任一实体进行绑定；
+ *   3. 注册表不可用时回退为旧版 _balance 后缀探测（兼容英文/手工重命名的实体）。
  *
  * 配置:
  *   type: custom:zhangjiajie-water-card
- *   # entity_prefix 可选，自动检测
+ *   # entity: sensor.xxx   # 多账户时可选，指定该账户任一传感器实体
  */
 (() => {
-  class ZhangjiajieWaterCard extends HTMLElement {
-    static get properties() {
-      return {
-        hass: { attribute: false },
-        config: { attribute: false },
-        _loading: { state: true },
-      };
-    }
+  // 集成全部实体 key（含按钮/二进制传感器），用于从 unique_id 尾段解析
+  const ENTITY_KEYS = [
+    "balance", "previous_balance", "last_payment_date", "last_payment_time",
+    "last_payment_amount", "invoice_code", "customer_code",
+    "current_usage", "current_bill", "current_water_fee", "other_fees",
+    "sewage_fee", "garbage_fee", "current_month_reading",
+    "previous_month_reading", "latest_reading", "latest_reading_month",
+    "annual_usage", "annual_bill",
+    "low_balance", "refresh_data",
+  ];
 
+  class ZhangjiajieWaterCard extends HTMLElement {
     constructor() {
       super();
+      this._hass = null;
+      this._config = null;
       this._loading = false;
-      this._entityPrefix = null;
+      this._entityMap = null;      // key -> entity_id
+      this._mapPromise = null;     // 防止并发初始化
       this._shadow = this.attachShadow({ mode: "open" });
     }
 
     setConfig(config) {
       if (!config) throw new Error("无效的卡片配置");
-      this.config = config;
+      this._config = config;
+      this._entityMap = null;
+      this._mapPromise = null;
+      this._render();
     }
 
     getCardSize() {
       return 5;
     }
 
+    connectedCallback() {
+      this._render();
+    }
+
+    set hass(hass) {
+      this._hass = hass;
+      this._ensureEntityMap();
+      this._render();
+    }
+    get hass() { return this._hass; }
+
+    // ---------- 实体发现 ----------
+
+    async _ensureEntityMap() {
+      if (this._entityMap || !this._hass) return;
+      if (!this._mapPromise) {
+        this._mapPromise = this._initEntityMap()
+          .then((map) => {
+            this._entityMap = map;
+            this._render();
+          })
+          .catch((err) => {
+            console.warn("[zjwater-card] 实体发现失败:", err);
+            this._entityMap = {};
+            this._render();
+          })
+          .finally(() => { this._mapPromise = null; });
+      }
+    }
+
+    async _initEntityMap() {
+      try {
+        const regs = await this._hass.connection.sendMessagePromise({
+          type: "config/entity_registry/list",
+        });
+        // 按账户（config_entry_id）分组：key -> entity_id
+        const groups = new Map();
+        for (const reg of regs) {
+          if (reg.platform !== "zhangjiajie_water" || !reg.unique_id) continue;
+          const sep = reg.unique_id.indexOf("_");
+          if (sep <= 0) continue;
+          const key = reg.unique_id.slice(sep + 1);
+          if (!ENTITY_KEYS.includes(key)) continue;
+          const group = groups.get(reg.config_entry_id) || {};
+          group[key] = reg.entity_id;
+          groups.set(reg.config_entry_id, group);
+        }
+        let group = null;
+        if (this._config.entity) {
+          const target = regs.find(
+            (r) => r.entity_id === this._config.entity && r.platform === "zhangjiajie_water"
+          );
+          if (target) group = groups.get(target.config_entry_id);
+          else console.warn("[zjwater-card] 配置的 entity 不属于本集成:", this._config.entity);
+        }
+        if (!group && groups.size >= 1) {
+          if (groups.size > 1) {
+            console.warn("[zjwater-card] 检测到多个供水账户，默认使用第一个；可在配置中指定 entity 绑定账户");
+          }
+          group = [...groups.values()][0];
+        }
+        if (group && group.balance) return group;
+      } catch (err) {
+        console.warn("[zjwater-card] 实体注册表不可用，回退旧版探测:", err);
+      }
+      // 回退：旧版 _balance 后缀探测（仅适配英文命名/手工重命名的实体）
+      const map = {};
+      const prefix = this._legacyDetectPrefix();
+      if (prefix) {
+        for (const key of ENTITY_KEYS) {
+          const id = key === "balance" ? `sensor.${prefix}_balance` : `sensor.${prefix}_${key}`;
+          if (this._hass?.states?.[id]) map[key] = id;
+        }
+        const btn = `button.${prefix}_refresh_data`;
+        if (this._hass?.states?.[btn]) map.refresh_data = btn;
+      }
+      return map;
+    }
+
+    _legacyDetectPrefix() {
+      if (!this._hass?.states) return null;
+      for (const id of Object.keys(this._hass.states)) {
+        if (id.startsWith("sensor.") && id.endsWith("_balance")) {
+          return id.slice("sensor.".length, -"_balance".length);
+        }
+      }
+      return null;
+    }
+
+    // ---------- 数据读取 ----------
+
+    _getState(key) {
+      const id = this._entityMap?.[key];
+      if (!id) return null;
+      const entity = this._hass?.states?.[id];
+      if (!entity || entity.state === "unavailable" || entity.state === "unknown") return null;
+      return entity;
+    }
+
+    _getVal(key, fallback = "—") {
+      const entity = this._getState(key);
+      if (!entity) return fallback;
+      const val = entity.state;
+      return (val === null || val === undefined || val === "") ? fallback : val;
+    }
+
+    _getFriendlyName() {
+      const entity = this._getState("balance");
+      if (entity?.attributes?.friendly_name) {
+        return entity.attributes.friendly_name.replace("账户余额", "").trim() || "张家界供水";
+      }
+      return this._config?.title || "张家界供水";
+    }
+
+    _getUpdateTime() {
+      const entity = this._getState("balance");
+      if (!entity?.last_updated) return "";
+      try {
+        const dt = new Date(entity.last_updated);
+        return `更新于 ${dt.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+      } catch { return ""; }
+    }
+
+    // ---------- 交互 ----------
+
+    async _handleRefresh() {
+      if (this._loading) return;
+      this._loading = true;
+      this._render();
+      const start = Date.now();
+      try {
+        const btnId = this._entityMap?.refresh_data;
+        if (btnId && this._hass.states[btnId]) {
+          await this.hass.callService("button", "press", { entity_id: btnId });
+        } else if (this._entityMap?.balance) {
+          await this.hass.callService("homeassistant", "update_entity", {
+            entity_id: this._entityMap.balance,
+          });
+        }
+        // 轮询等待实体更新，最长 10s
+        await new Promise((resolve) => {
+          const check = () => {
+            const entity = this._getState("balance");
+            const elapsed = Date.now() - start;
+            if ((entity && new Date(entity.last_updated).getTime() > start - 2000) || elapsed > 10000) {
+              resolve();
+            } else {
+              setTimeout(check, 500);
+            }
+          };
+          setTimeout(check, 500);
+        });
+      } catch (err) {
+        console.warn("[zjwater-card] 刷新失败:", err);
+      } finally {
+        this._loading = false;
+        this._render();
+      }
+    }
+
+    _fmt(val, decimals = 2) {
+      const n = parseFloat(val);
+      return isNaN(n) ? "—" : n.toFixed(decimals);
+    }
+
+    // ---------- 渲染 ----------
+
     _getStyles() {
-      const isDark = matchMedia("(prefers-color-scheme: dark)").matches
-        || document.querySelector("home-assistant")?.shadowRoot?.querySelector("ha-sidebar")?.classList.contains("dark");
       return `
         :host { display: block; }
         ha-card {
@@ -138,117 +317,17 @@
       `;
     }
 
-    _detectPrefix() {
-      if (this.config?.entity_prefix) return this.config.entity_prefix;
-      if (this._entityPrefix) return this._entityPrefix;
-      if (!this.hass?.states) return null;
-      for (const id of Object.keys(this.hass.states)) {
-        if (id.endsWith("_balance") && id.startsWith("sensor.")) {
-          this._entityPrefix = id.replace(/_balance$/, "");
-          return this._entityPrefix;
-        }
-      }
-      return null;
-    }
-
-    _getEntityId(key) {
-      const prefix = this._detectPrefix();
-      return prefix ? `${prefix}_${key}` : null;
-    }
-
-    _getState(key) {
-      const entityId = this._getEntityId(key);
-      if (!entityId) return null;
-      const entity = this.hass?.states[entityId];
-      if (!entity || entity.state === "unavailable" || entity.state === "unknown") return null;
-      return entity;
-    }
-
-    _getVal(key, fallback = "\u2014") {
-      const entity = this._getState(key);
-      if (!entity) return fallback;
-      const val = entity.state;
-      return (val === null || val === undefined || val === "") ? fallback : val;
-    }
-
-    _getFriendlyName() {
-      const entity = this._getState("balance");
-      if (entity?.attributes?.friendly_name) {
-        return entity.attributes.friendly_name.replace("\u8d26\u6237\u4f59\u989d", "").trim() || "\u5f20\u5bb6\u754c\u4f9b\u6c34";
-      }
-      return this.config?.title || "\u5f20\u5bb6\u754c\u4f9b\u6c34";
-    }
-
-    _getUpdateTime() {
-      const entity = this._getState("balance");
-      if (!entity?.last_updated) return "";
-      try {
-        const dt = new Date(entity.last_updated);
-        return `\u66f4\u65b0\u4e8e ${dt.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
-      } catch { return ""; }
-    }
-
-    async _handleRefresh() {
-      if (this._loading) return;
-      this._loading = true;
-      this._render();
-      try {
-        const prefix = this._detectPrefix();
-        // 精确匹配：从 sensor 前缀推导 button 实体 ID
-        const btnId = prefix
-          ? `button.${prefix.replace(/^sensor\./, "")}_refresh_data`
-          : null;
-        if (btnId && this.hass.states[btnId]) {
-          await this.hass.callService("button", "press", { entity_id: btnId });
-        } else {
-          const balanceId = this._getEntityId("balance");
-          if (balanceId) {
-            await this.hass.callService("homeassistant", "update_entity", { entity_id: balanceId });
-          }
-        }
-        // 智能等待：轮询检查实体更新或超时 10s
-        await new Promise(resolve => {
-          const start = Date.now();
-          const check = () => {
-            const entity = this._getState("balance");
-            const elapsed = Date.now() - start;
-            if ((entity && new Date(entity.last_updated).getTime() > start - 2000) || elapsed > 10000) {
-              resolve();
-            } else {
-              setTimeout(check, 500);
-            }
-          };
-          setTimeout(check, 500);
-        });
-      } catch (err) {
-        console.warn("[zjwater-card] \u5237\u65b0\u5931\u8d25:", err);
-      } finally {
-        this._loading = false;
-        this._render();
-      }
-    }
-
-    _fmt(val, decimals = 2) {
-      const n = parseFloat(val);
-      return isNaN(n) ? "\u2014" : n.toFixed(decimals);
-    }
-
-    connectedCallback() { this._render(); }
-
-    set hass(hass) {
-      this._hass = hass;
-      this._render();
-    }
-    get hass() { return this._hass; }
-
     _render() {
-      if (!this._hass || !this.config) {
-        this._shadow.innerHTML = `<style>${this._getStyles()}</style><ha-card><div class="error-msg">\u52a0\u8f7d\u4e2d...</div></ha-card>`;
+      if (!this._hass || !this._config) {
+        this._shadow.innerHTML = `<style>${this._getStyles()}</style><ha-card><div class="error-msg">加载中...</div></ha-card>`;
         return;
       }
-      const prefix = this._detectPrefix();
-      if (!prefix) {
-        this._shadow.innerHTML = `<style>${this._getStyles()}</style><ha-card><div class="error-msg">\u672a\u627e\u5230\u5f20\u5bb6\u754c\u4f9b\u6c34\u4f20\u611f\u5668\u5b9e\u4f53\u3002\u8bf7\u786e\u8ba4\u96c6\u6210\u5df2\u914d\u7f6e\uff0c\u6216\u6307\u5b9a entity_prefix\u3002</div></ha-card>`;
+      if (!this._entityMap) {
+        this._shadow.innerHTML = `<style>${this._getStyles()}</style><ha-card><div class="error-msg">正在检测张家界供水实体...</div></ha-card>`;
+        return;
+      }
+      if (!this._entityMap.balance) {
+        this._shadow.innerHTML = `<style>${this._getStyles()}</style><ha-card><div class="error-msg">未找到张家界供水传感器实体。请确认集成已配置并完成首次数据刷新；多账户时可在卡片配置中指定 entity。</div></ha-card>`;
         return;
       }
 
@@ -264,57 +343,63 @@
       const lpd = this._getVal("last_payment_date");
       const lpa = this._getVal("last_payment_amount");
       const ab = this._getVal("annual_bill");
-      const logo = this.config.logo_url || "/local/zhangjiajie_water/logo.png";
+      const low = this._getState("low_balance");
+      const lowChip = low?.state === "on"
+        ? `<span style="font-size:0.62em;background:var(--error-color,#db4437);color:#fff;border-radius:4px;padding:1px 6px;margin-left:6px">余额不足</span>`
+        : "";
+      const logo = this._config.logo_url || "/local/zhangjiajie_water/logo.png";
       const loading = this._loading ? " loading" : "";
 
       this._shadow.innerHTML = `<style>${this._getStyles()}</style>
 <ha-card>
   <div class="header">
-    <img class="header-logo" src="${logo}" alt="logo" onerror="this.style.display='none'">
+    <img class="header-logo" src="${logo}" alt="logo">
     <div class="header-info">
-      <div class="header-title">${this._getFriendlyName()}</div>
-      <div class="header-subtitle">\u5f20\u5bb6\u754c\u5e02\u81ea\u6765\u6c34\u6709\u9650\u8d23\u4efb\u516c\u53f8</div>
+      <div class="header-title">${this._getFriendlyName()}${lowChip}</div>
+      <div class="header-subtitle">张家界市自来水有限责任公司</div>
     </div>
-    <button class="refresh-btn${loading}" title="\u5237\u65b0\u6570\u636e">
+    <button class="refresh-btn${loading}" title="刷新数据">
       <ha-icon icon="mdi:refresh" style="--mdc-icon-size:20px"></ha-icon>
     </button>
   </div>
   <div class="summary-grid">
     <div class="summary-item">
-      <div class="summary-label"><ha-icon icon="mdi:cash" style="--mdc-icon-size:14px;color:var(--primary-color,#1565c0)"></ha-icon>\u8d26\u6237\u4f59\u989d</div>
-      <div class="summary-value highlight">${this._fmt(b)}<span class="summary-unit">\u5143</span></div>
+      <div class="summary-label"><ha-icon icon="mdi:cash" style="--mdc-icon-size:14px;color:var(--primary-color,#1565c0)"></ha-icon>账户余额</div>
+      <div class="summary-value highlight">${this._fmt(b)}<span class="summary-unit">元</span></div>
     </div>
     <div class="summary-item">
-      <div class="summary-label"><ha-icon icon="mdi:water" style="--mdc-icon-size:14px;color:#1976d2"></ha-icon>\u672c\u671f\u7528\u6c34</div>
-      <div class="summary-value">${this._fmt(u, 1)}<span class="summary-unit">m\u00b3</span></div>
+      <div class="summary-label"><ha-icon icon="mdi:water" style="--mdc-icon-size:14px;color:#1976d2"></ha-icon>本期用水</div>
+      <div class="summary-value">${this._fmt(u, 1)}<span class="summary-unit">m³</span></div>
     </div>
     <div class="summary-item">
-      <div class="summary-label"><ha-icon icon="mdi:currency-cny" style="--mdc-icon-size:14px;color:#e65100"></ha-icon>\u672c\u671f\u8d39\u7528</div>
-      <div class="summary-value">${this._fmt(bill)}<span class="summary-unit">\u5143</span></div>
+      <div class="summary-label"><ha-icon icon="mdi:currency-cny" style="--mdc-icon-size:14px;color:#e65100"></ha-icon>本期费用</div>
+      <div class="summary-value">${this._fmt(bill)}<span class="summary-unit">元</span></div>
     </div>
     <div class="summary-item">
-      <div class="summary-label"><ha-icon icon="mdi:chart-bar" style="--mdc-icon-size:14px;color:#388e3c"></ha-icon>\u5e74\u7d2f\u8ba1\u7528\u6c34</div>
-      <div class="summary-value">${this._fmt(au, 1)}<span class="summary-unit">m\u00b3</span></div>
+      <div class="summary-label"><ha-icon icon="mdi:chart-bar" style="--mdc-icon-size:14px;color:#388e3c"></ha-icon>年累计用水</div>
+      <div class="summary-value">${this._fmt(au, 1)}<span class="summary-unit">m³</span></div>
     </div>
   </div>
   <div class="details-section">
-    <div class="details-title"><ha-icon icon="mdi:format-list-bulleted" style="--mdc-icon-size:14px"></ha-icon>\u8d39\u7528\u660e\u7ec6\uff08${rm}\uff09</div>
-    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:water-outline" style="--mdc-icon-size:14px"></ha-icon>\u6c34\u8d39</span><span class="detail-value">${this._fmt(wf)} \u5143</span></div>
-    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:water-pump" style="--mdc-icon-size:14px"></ha-icon>\u6c61\u6c34\u5904\u7406\u8d39</span><span class="detail-value">${this._fmt(sf)} \u5143</span></div>
-    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:trash-can-outline" style="--mdc-icon-size:14px"></ha-icon>\u5783\u573e\u5904\u7406\u8d39</span><span class="detail-value">${this._fmt(gf)} \u5143</span></div>
-    ${parseFloat(of) > 0 ? `<div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:receipt-text-outline" style="--mdc-icon-size:14px"></ha-icon>\u5176\u4ed6\u8d39\u7528</span><span class="detail-value">${this._fmt(of)} \u5143</span></div>` : ""}
+    <div class="details-title"><ha-icon icon="mdi:format-list-bulleted" style="--mdc-icon-size:14px"></ha-icon>费用明细（${rm}）</div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:water-outline" style="--mdc-icon-size:14px"></ha-icon>水费</span><span class="detail-value">${this._fmt(wf)} 元</span></div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:water-pump" style="--mdc-icon-size:14px"></ha-icon>污水处理费</span><span class="detail-value">${this._fmt(sf)} 元</span></div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:trash-can-outline" style="--mdc-icon-size:14px"></ha-icon>垃圾处理费</span><span class="detail-value">${this._fmt(gf)} 元</span></div>
+    ${parseFloat(of) > 0 ? `<div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:receipt-text-outline" style="--mdc-icon-size:14px"></ha-icon>其他费用</span><span class="detail-value">${this._fmt(of)} 元</span></div>` : ""}
   </div>
   <div class="details-section" style="padding-top:0">
-    <div class="details-title"><ha-icon icon="mdi:history" style="--mdc-icon-size:14px"></ha-icon>\u4e0a\u6b21\u7f34\u8d39</div>
-    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:calendar" style="--mdc-icon-size:14px"></ha-icon>\u7f34\u8d39\u65e5\u671f</span><span class="detail-value">${lpd}</span></div>
-    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:cash-100" style="--mdc-icon-size:14px"></ha-icon>\u7f34\u8d39\u91d1\u989d</span><span class="detail-value">${this._fmt(lpa)} \u5143</span></div>
-    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:currency-cny" style="--mdc-icon-size:14px"></ha-icon>\u5e74\u7d2f\u8ba1\u6c34\u8d39</span><span class="detail-value">${this._fmt(ab)} \u5143</span></div>
+    <div class="details-title"><ha-icon icon="mdi:history" style="--mdc-icon-size:14px"></ha-icon>上次缴费</div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:calendar" style="--mdc-icon-size:14px"></ha-icon>缴费日期</span><span class="detail-value">${lpd}</span></div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:cash-100" style="--mdc-icon-size:14px"></ha-icon>缴费金额</span><span class="detail-value">${this._fmt(lpa)} 元</span></div>
+    <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:currency-cny" style="--mdc-icon-size:14px"></ha-icon>年累计水费</span><span class="detail-value">${this._fmt(ab)} 元</span></div>
   </div>
   <div class="update-time">${this._getUpdateTime()}</div>
 </ha-card>`;
 
       const btn = this._shadow.querySelector(".refresh-btn");
       if (btn) btn.addEventListener("click", () => this._handleRefresh());
+      const img = this._shadow.querySelector(".header-logo");
+      if (img) img.addEventListener("error", () => { img.style.display = "none"; });
     }
   }
 
@@ -322,10 +407,10 @@
   window.customCards = window.customCards || [];
   window.customCards.push({
     type: "zhangjiajie-water-card",
-    name: "\u5f20\u5bb6\u754c\u4f9b\u6c34\u5361\u7247",
-    description: "\u663e\u793a\u5f20\u5bb6\u754c\u5e02\u81ea\u6765\u6c34\u8d26\u5355\u3001\u4f59\u989d\u3001\u7528\u6c34\u91cf\u7b49\u4fe1\u606f",
+    name: "张家界供水卡片",
+    description: "显示张家界市自来水账单、余额、用水量等信息",
     preview: false,
     documentationURL: "https://github.com/yahooor/zhangjiajie_water_ha",
   });
-  console.info("[zjwater-card] v3.1.0 registered (native HTMLElement, no external deps)");
+  console.info("[zjwater-card] v3.2.0 registered (entity-registry based detection)");
 })();

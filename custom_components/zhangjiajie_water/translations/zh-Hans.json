@@ -15,7 +15,7 @@
       "invalid_account": "户号格式不正确，请检查",
       "invalid_openid": "OpenID 格式不正确，请检查",
       "cannot_connect": "无法连接供水服务器，请检查网络",
-      "no_data": "未查询到用水数据，请核实户号和 OpenID"
+      "no_data": "户号或 OpenID 未通过服务器验证，请核实"
     },
     "abort": {
       "already_configured": "此账户已配置"
@@ -30,22 +30,16 @@
           "update_mode": "刷新模式",
           "update_interval": "刷新间隔（小时）",
           "daily_hour": "每日刷新时间（时，0-23）",
-          "daily_minute": "每日刷新时间（分，0-59）"
+          "daily_minute": "每日刷新时间（分，0-59）",
+          "low_balance_threshold": "低余额提醒阈值（元，0 = 关闭）"
         },
         "data_description": {
           "update_mode": "选择数据刷新方式",
           "update_interval": "仅在「固定间隔」模式下生效",
           "daily_hour": "仅在「每日定时」模式下生效",
-          "daily_minute": "仅在「每日定时」模式下生效"
+          "daily_minute": "仅在「每日定时」模式下生效",
+          "low_balance_threshold": "余额低于该值时「余额不足」传感器开启，0 表示关闭"
         }
-      }
-    }
-  },
-  "selector": {
-    "update_mode": {
-      "options": {
-        "interval": "固定间隔（每 N 小时刷新）",
-        "daily": "每日定时（每天指定时间刷新）"
       }
     }
   }

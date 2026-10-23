@@ -18,5 +18,6 @@ INTEGRATION_VERSION: str = _MANIFEST["version"]
 CONF_UPDATE_MODE = "update_mode"
 CONF_DAILY_HOUR = "daily_hour"
 CONF_DAILY_MINUTE = "daily_minute"
+CONF_LOW_BALANCE_THRESHOLD = "low_balance_threshold"
 UPDATE_MODE_DAILY = "daily"
 UPDATE_MODE_INTERVAL = "interval"

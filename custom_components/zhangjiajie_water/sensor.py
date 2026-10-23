@@ -22,8 +22,44 @@ from .coordinator import ZhangjiajieWaterCoordinator
 
 @dataclass(frozen=True, kw_only=True)
 class ZhangjiajieWaterSensorEntityDescription(SensorEntityDescription):
-    """扩展描述：支持 value_fn 提取数据"""
+    """扩展描述：支持 value_fn 提取数据、attributes_fn 附加历史数据"""
     value_fn: Callable[[dict], Any] = lambda d: None
+    attributes_fn: Callable[[dict], dict[str, Any]] | None = None
+
+
+def _num(value) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _usage_history(data: dict) -> dict[str, Any]:
+    """本年度逐月用水/费用（挂在本期用水量传感器的属性上）"""
+    return {
+        "monthly_usage": [
+            {
+                "month": rec.get("ysny", ""),
+                "usage": _num(rec.get("sl")),
+                "bill": _num(rec.get("hjfy")),
+            }
+            for rec in data.get("_usage_records", [])
+        ]
+    }
+
+
+def _payment_history(data: dict) -> dict[str, Any]:
+    """最近缴费记录（挂在上次缴费金额传感器的属性上）"""
+    return {
+        "recent_payments": [
+            {
+                "time": rec.get("sfsj", ""),
+                "amount": _num(rec.get("jfje")),
+                "balance_after": _num(rec.get("bcye")),
+            }
+            for rec in data.get("_payment_records", [])[:5]
+        ]
+    }
 
 
 SENSOR_DESCRIPTIONS: tuple[ZhangjiajieWaterSensorEntityDescription, ...] = (
@@ -61,6 +97,7 @@ SENSOR_DESCRIPTIONS: tuple[ZhangjiajieWaterSensorEntityDescription, ...] = (
         native_unit_of_measurement="CNY",
         device_class=SensorDeviceClass.MONETARY,
         value_fn=lambda d: round(float(d["last_payment_amount"]), 2) if d.get("last_payment_amount") is not None else None,
+        attributes_fn=_payment_history,
     ),
     ZhangjiajieWaterSensorEntityDescription(
         key="previous_balance",
@@ -91,6 +128,7 @@ SENSOR_DESCRIPTIONS: tuple[ZhangjiajieWaterSensorEntityDescription, ...] = (
         native_unit_of_measurement="m³",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: d.get("current_usage"),
+        attributes_fn=_usage_history,
     ),
     ZhangjiajieWaterSensorEntityDescription(
         key="current_bill",
@@ -230,5 +268,14 @@ class ZhangjiajieWaterSensor(CoordinatorEntity[ZhangjiajieWaterCoordinator], Sen
             return None
         try:
             return self.entity_description.value_fn(self.coordinator.data)
+        except (KeyError, ValueError, TypeError):
+            return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if not self.coordinator.data or self.entity_description.attributes_fn is None:
+            return None
+        try:
+            return self.entity_description.attributes_fn(self.coordinator.data)
         except (KeyError, ValueError, TypeError):
             return None

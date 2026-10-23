@@ -78,9 +78,13 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         self._daily_unsub = None  # async_track_time_change 的取消回调
 
     async def async_config_entry_first_refresh(self) -> None:
-        """首次刷新 + 注册每日定时监听器。"""
-        await super().async_config_entry_first_refresh()
+        """注册每日定时监听器 + 首次刷新。
+
+        监听器必须先于首刷注册：首刷失败被上层捕获后继续运行，
+        若放在首刷之后，"每日定时"模式会因启动时 API 故障而整天不刷新。
+        """
         self._register_daily_listener()
+        await super().async_config_entry_first_refresh()
 
     def _register_daily_listener(self) -> None:
         """根据 options 决定是否注册每日定时刷新。"""
@@ -208,18 +212,34 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         )
         raw_reading = latest.get("bybs")
         numeric_reading = _safe_float(raw_reading, default=None)
-        if numeric_reading is not None and numeric_reading == int(numeric_reading):
+        # is_integer() 对 NaN/Inf 返回 False，避免 int(nan) 抛 ValueError 拖垮整次更新
+        if numeric_reading is not None and numeric_reading.is_integer():
             numeric_reading = int(numeric_reading)
         raw_prev_reading = latest.get("sybs")
         prev_reading = _safe_float(raw_prev_reading, default=None)
-        if prev_reading is not None and prev_reading == int(prev_reading):
+        if prev_reading is not None and prev_reading.is_integer():
             prev_reading = int(prev_reading)
+        current_usage = _safe_float(latest.get("sl"), 0.0)
+        # 抄表自检：本期读数 − 上期读数 应约等于本期用量，不符则告警提示抄表异常
+        if (
+            numeric_reading is not None
+            and prev_reading is not None
+            and abs(float(numeric_reading) - float(prev_reading) - current_usage) > 0.05
+        ):
+            _LOGGER.warning(
+                "抄表数据自检不一致（%s）: 本期读数 %s − 上期读数 %s ≠ 本期用量 %s，"
+                "请核对供水公司账单",
+                formatted_month,
+                numeric_reading,
+                prev_reading,
+                current_usage,
+            )
         return {
             "latest_reading_month": formatted_month,
             "latest_reading": numeric_reading,
             "current_month_reading": numeric_reading,
             "previous_month_reading": prev_reading,
-            "current_usage": _safe_float(latest.get("sl"), 0.0),
+            "current_usage": current_usage,
             "current_bill": _safe_float(latest.get("hjfy"), 0.0),
             "current_water_fee": _safe_float(latest.get("sf"), 0.0),
             "other_fees": _safe_float(latest.get("qtxm"), 0.0),

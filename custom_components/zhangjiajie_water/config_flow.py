@@ -7,22 +7,42 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
+from .api import (
+    ZhangjiajieWaterAPI,
+    ZhangjiajieWaterApiAuthError,
+    ZhangjiajieWaterApiError,
+)
 from .const import (
-    DOMAIN,
-    CONF_UPDATE_MODE,
     CONF_DAILY_HOUR,
     CONF_DAILY_MINUTE,
+    CONF_LOW_BALANCE_THRESHOLD,
+    CONF_UPDATE_MODE,
+    DOMAIN,
     UPDATE_MODE_DAILY,
     UPDATE_MODE_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-UPDATE_MODE_OPTIONS = [UPDATE_MODE_INTERVAL, UPDATE_MODE_DAILY]
+UPDATE_MODE_OPTIONS = [
+    SelectOptionDict(value=UPDATE_MODE_INTERVAL, label="固定间隔（每 N 小时刷新）"),
+    SelectOptionDict(value=UPDATE_MODE_DAILY, label="每日定时（每天指定时间刷新）"),
+]
 
 
 class ZhangjiajieWaterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle the initial config flow."""
+
     VERSION = 2
 
     async def async_step_user(
@@ -39,8 +59,22 @@ class ZhangjiajieWaterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not errors:
                 await self.async_set_unique_id(f"zjw_{account_no}")
                 self._abort_if_unique_id_configured()
+                # 提交前实测凭据，户号/OpenID 填错立即反馈而不是装完才在日志里发现
+                api = ZhangjiajieWaterAPI(
+                    account_no=account_no, openid=openid, hass=self.hass
+                )
+                try:
+                    await api.async_test_connection()
+                except ZhangjiajieWaterApiAuthError:
+                    errors["base"] = "no_data"
+                except ZhangjiajieWaterApiError:
+                    errors["base"] = "cannot_connect"
+            if not errors:
                 title = user_input.get("account_name") or account_no
-                return self.async_create_entry(title=title, data=user_input)
+                return self.async_create_entry(
+                    title=title,
+                    data={**user_input, "account_no": account_no, "openid": openid},
+                )
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
@@ -72,10 +106,12 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
             _LOGGER.info("[OptionsFlow] 保存: %s", user_input)
             return self.async_create_entry(title="", data=user_input)
 
-        current_mode = self._config_entry.options.get(CONF_UPDATE_MODE, UPDATE_MODE_INTERVAL)
-        current_interval = self._config_entry.options.get("update_interval", 6)
-        current_hour = self._config_entry.options.get(CONF_DAILY_HOUR, 7)
-        current_minute = self._config_entry.options.get(CONF_DAILY_MINUTE, 30)
+        opts = self._config_entry.options
+        current_mode = opts.get(CONF_UPDATE_MODE, UPDATE_MODE_INTERVAL)
+        current_interval = opts.get("update_interval", 6)
+        current_hour = opts.get(CONF_DAILY_HOUR, 7)
+        current_minute = opts.get(CONF_DAILY_MINUTE, 30)
+        current_threshold = opts.get(CONF_LOW_BALANCE_THRESHOLD, 0)
 
         return self.async_show_form(
             step_id="init",
@@ -83,22 +119,50 @@ class ZhangjiajieWaterOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_UPDATE_MODE,
                     default=current_mode,
-                ): vol.In(UPDATE_MODE_OPTIONS),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=UPDATE_MODE_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
                 vol.Optional(
                     "update_interval",
                     default=current_interval,
                     description={"suggested_value": current_interval},
-                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1, max=24, step=1,
+                        mode=NumberSelectorMode.BOX, unit_of_measurement="小时",
+                    )
+                ),
                 vol.Optional(
                     CONF_DAILY_HOUR,
                     default=current_hour,
                     description={"suggested_value": current_hour},
-                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0, max=23, step=1, mode=NumberSelectorMode.BOX,
+                    )
+                ),
                 vol.Optional(
                     CONF_DAILY_MINUTE,
                     default=current_minute,
                     description={"suggested_value": current_minute},
-                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0, max=59, step=1, mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
+                    CONF_LOW_BALANCE_THRESHOLD,
+                    default=current_threshold,
+                    description={"suggested_value": current_threshold},
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0, max=10000, step=0.5,
+                        mode=NumberSelectorMode.BOX, unit_of_measurement="元",
+                    )
+                ),
             }),
             description_placeholders={
                 "update_interval": str(current_interval),
