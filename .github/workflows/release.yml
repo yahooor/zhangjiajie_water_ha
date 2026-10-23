@@ -1,8 +1,8 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
 
 jobs:
   validate:
@@ -39,7 +39,7 @@ jobs:
         uses: home-assistant/actions/hassfest@master
 
   attach-zip:
-    name: "生成并上传 ZIP"
+    name: "创建 Release 并上传 ZIP"
     runs-on: ubuntu-latest
     needs: validate
     permissions:
@@ -50,10 +50,20 @@ jobs:
       - name: 打包 ZIP
         run: |
           cd custom_components/zhangjiajie_water
-          # ../../ 回到仓库根（workspace），zip 必须落在 workspace 内 softprops 才能找到
+          # ../../ 回到仓库根（workspace），zip 必须落在 workspace 内才能上传
           zip -r ../../zhangjiajie_water.zip ./
 
-      - name: 上传到 Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: zhangjiajie_water.zip
+      # GitHub 发布资产不可变：已发布的 Release 不允许再上传资产，
+      # 必须先建草稿 → 上传 ZIP → 再发布
+      - name: 草稿创建 Release 并上传 ZIP 后发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "$TAG" --draft \
+            --title "$TAG" \
+            --notes "更新日志见 README: https://github.com/yahooor/zhangjiajie_water_ha#更新日志"
+          gh release upload "$TAG" zhangjiajie_water.zip
+          gh release edit "$TAG" --draft=false
+          echo "Release published with assets:"
+          gh release view "$TAG" --json assets --jq '.assets[].name'
