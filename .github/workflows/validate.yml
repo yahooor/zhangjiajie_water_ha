@@ -10,6 +10,25 @@ on:
     - cron: "0 0 * * *" # 每日自动验证
 
 jobs:
+  tests:
+    name: "单元测试 + Ruff"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 安装依赖
+        run: pip install ruff pytest
+
+      - name: Ruff 检查
+        run: ruff check custom_components tests conftest.py
+
+      - name: 单元测试
+        run: pytest tests -q
+
   validate-hacs:
     name: "HACS & Hassfest 验证"
     runs-on: ubuntu-latest

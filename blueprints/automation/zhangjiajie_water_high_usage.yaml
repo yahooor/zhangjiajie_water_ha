@@ -1,0 +1,44 @@
+blueprint:
+  name: 张家界供水 月用水量偏高提醒
+  description: >-
+    本期用水量超过阈值（m³）时发送通知。
+    水费账单按月出账，本自动化在每次数据刷新后检查最新一期账单的用量。
+  domain: automation
+  author: yahooor
+  source_url: >-
+    https://github.com/yahooor/zhangjiajie_water_ha/blob/main/blueprints/automation/zhangjiajie_water_high_usage.yaml
+  input:
+    usage_entity:
+      name: 本期用水量传感器
+      selector:
+        entity:
+          filter:
+            - integration: zhangjiajie_water
+    threshold:
+      name: 用水量阈值（m³）
+      description: 本期用水量超过该值时通知
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.5
+          unit_of_measurement: "m³"
+    notification_service:
+      name: 通知服务
+      description: 接收提醒的服务，如 notify.mobile_app_你的手机
+      selector:
+        service: {}
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input usage_entity
+    above: !input threshold
+
+action:
+  - service: !input notification_service
+    data:
+      title: 本期用水量偏高
+      message: >-
+        本期用水量已达到 {{ states(trigger.entity_id) }} m³，
+        超过设定阈值 {{ threshold }} m³，请留意是否有漏水或异常用水。

@@ -1,5 +1,6 @@
 """张家界供水集成入口"""
 from __future__ import annotations
+
 import logging
 import shutil
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, CONF_UPDATE_MODE, UPDATE_MODE_INTERVAL
+from .const import CONF_UPDATE_MODE, DOMAIN, UPDATE_MODE_INTERVAL
 from .coordinator import ZhangjiajieWaterCoordinator
 
 _LOGGER = logging.getLogger(__name__)

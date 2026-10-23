@@ -1,37 +1,40 @@
 """张家界供水 DataUpdateCoordinator（混合刷新模式）"""
 from __future__ import annotations
+
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.helpers.device_registry import DeviceInfo
 
 from .api import ZhangjiajieWaterAPI
 from .const import (
-    DOMAIN,
-    INTEGRATION_VERSION,
-    CONF_UPDATE_MODE,
     CONF_DAILY_HOUR,
     CONF_DAILY_MINUTE,
+    CONF_UPDATE_MODE,
+    DOMAIN,
+    INTEGRATION_VERSION,
     UPDATE_MODE_DAILY,
     UPDATE_MODE_INTERVAL,
 )
+from .utils import (
+    TZ_SHANGHAI as _TZ_SHANGHAI,
+)
+from .utils import (
+    format_reading_month,
+    parse_payment_datetime,
+    sum_annual,
+    year_records,
+)
+from .utils import (
+    safe_float as _safe_float,
+)
 
 _LOGGER = logging.getLogger(__name__)
-_TZ_SHANGHAI = ZoneInfo("Asia/Shanghai")
-
-
-def _safe_float(value, default: float | None = 0.0) -> float | None:
-    """安全转换 float，非法值返回 default"""
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
 
 
 class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
@@ -101,7 +104,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         minute = int(self.entry.options.get(CONF_DAILY_MINUTE, 30))
 
         @callback
-        def _daily_refresh(now: datetime) -> None:  # noqa: ARG001
+        def _daily_refresh(now: datetime) -> None:
             """每日定时回调：触发协调器刷新。"""
             _LOGGER.debug("[Coordinator] 每日定时刷新触发 (%02d:%02d)", hour, minute)
             self.hass.async_create_task(self.async_request_refresh())
@@ -184,32 +187,37 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("发送失败通知时出错: %s", e)
 
     async def _fetch_usage(self) -> dict:
-        """获取用水月报，逐条过滤本年记录"""
+        """获取用水月报：优先本年记录，本年无记录时回退最近一条（跨年空窗）"""
         current_year = str(datetime.now(_TZ_SHANGHAI).year)
         all_records: list = []
+        latest_any: dict | None = None  # 全部记录中最 new 的一条（跨年回退用）
         page = 1
         while page <= 20:  # 安全上限，防止脏数据死循环
             records = await self.api.fetch_usage_records(page=page)
             if not records:
                 break
+            if latest_any is None:
+                latest_any = records[0]
             # 逐条过滤，只保留本年记录（一页可能跨年）
-            year_records = [r for r in records if r.get("ysny", "").startswith(current_year)]
-            all_records.extend(year_records)
+            all_records.extend(year_records(records, current_year))
             # 本页最旧记录已跨年，后续页更旧，停止翻页
             last_ym = records[-1].get("ysny", "")
-            if not last_ym or not last_ym.startswith(current_year):
+            if not last_ym or not str(last_ym).startswith(current_year):
                 break
             page += 1
-        if not all_records:
+        if latest_any is None:
             return {}
-        latest = all_records[0]
-        raw_month = latest.get("ysny", "")
-        # "202604" → "2026年4月"
-        formatted_month = (
-            f"{raw_month[:4]}年{int(raw_month[4:])}月"
-            if len(raw_month) == 6 and raw_month.isdigit()
-            else raw_month
-        )
+        # 本年尚无账单（如 1 月初）时回退最近一条跨年记录，避免读数/用量显示空窗；
+        # 年累计统计仍只按本年记录计算（空列表 = 0）
+        latest = all_records[0] if all_records else latest_any
+        if not all_records:
+            _LOGGER.info(
+                "本年（%s）暂无用水记录，回退显示最近一条（%s）",
+                current_year,
+                latest.get("ysny", ""),
+            )
+        raw_month = str(latest.get("ysny", ""))
+        formatted_month = format_reading_month(raw_month)
         raw_reading = latest.get("bybs")
         numeric_reading = _safe_float(raw_reading, default=None)
         # is_integer() 对 NaN/Inf 返回 False，避免 int(nan) 抛 ValueError 拖垮整次更新
@@ -254,50 +262,20 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         if not records:
             return {}
         latest = records[0]
-        bcye = _safe_float(latest.get("bcye"), 0.0)
-        scye = _safe_float(latest.get("scye"), 0.0)
-        # 解析交费时间（API 返回格式 "2026-04-06 15:30" 或 "2026-04-06"）
         raw_sfsj = latest.get("sfsj", "")
-        payment_date = None
-        payment_datetime = None
-        if raw_sfsj:
-            payment_date = raw_sfsj[:10]
-            try:
-                stripped = raw_sfsj.strip()
-                if len(stripped) > 16:
-                    # 带秒/毫秒: "2026-05-03 07:51:14" 或 "2026-05-03 07:51:14.0"
-                    payment_datetime = datetime.strptime(stripped[:19], "%Y-%m-%d %H:%M:%S").replace(
-                        tzinfo=_TZ_SHANGHAI
-                    )
-                elif len(stripped) > 10:
-                    payment_datetime = datetime.strptime(stripped, "%Y-%m-%d %H:%M").replace(
-                        tzinfo=_TZ_SHANGHAI
-                    )
-                else:
-                    payment_datetime = datetime.strptime(stripped, "%Y-%m-%d").replace(
-                        tzinfo=_TZ_SHANGHAI
-                    )
-            except ValueError:
-                _LOGGER.warning("交费时间格式无法解析: %s", raw_sfsj)
         return {
-            "balance": bcye,
-            "previous_balance": scye,
+            "balance": _safe_float(latest.get("bcye"), 0.0),
+            "previous_balance": _safe_float(latest.get("scye"), 0.0),
             "invoice_code": latest.get("kphm", ""),
-            "last_payment_date": payment_date,
-            "last_payment_time": payment_datetime,
+            "last_payment_date": raw_sfsj[:10] if raw_sfsj else None,
+            "last_payment_time": parse_payment_datetime(raw_sfsj),
             "last_payment_amount": _safe_float(latest.get("jfje"), 0.0),
             "_payment_records": records,
         }
 
     def _merge_data(self, usage: dict, payment: dict) -> dict:
         current_year = str(datetime.now(_TZ_SHANGHAI).year)
-        annual = 0.0
-        annual_bill = 0.0
-        for rec in usage.get("_usage_records", []):
-            ym = rec.get("ysny", "")
-            if ym and ym.startswith(current_year):
-                annual += _safe_float(rec.get("sl", 0))
-                annual_bill += _safe_float(rec.get("hjfy", 0))
+        annual, annual_bill = sum_annual(usage.get("_usage_records", []), current_year)
         merged = {
             "customer_code": self.entry.data.get("account_no", ""),
             "balance": payment.get("balance", 0.0),

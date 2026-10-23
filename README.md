@@ -9,9 +9,11 @@ Home Assistant 自定义集成，通过抓取张家界供水微信公众号获�
 | 💧 用水记录 | 月度用水量、抄表读数、水费明细 |
 | 💰 缴费记录 | 缴费时间、金额、余额、方式 |
 | 📊 年度统计 | 年累计用水量、年累计水费 |
+| ⚡ 能源面板 | 累计用水传感器（total_increasing），可加入 HA 能源面板水耗统计 |
 | 📈 历史数据 | 本期用水量传感器附带逐月用水/费用属性，上次缴费金额附带最近缴费记录属性 |
 | 🔄 自动更新 | 默认 6 小时刷新一次，支持每日定时模式 |
 | 🔔 低余额提醒 | 可配置阈值的「余额不足」二进制传感器 |
+| 🧩 自动化蓝图 | 内置低余额、高用水提醒蓝图，一键导入 |
 | 🩺 诊断支持 | 支持下载诊断（凭据自动脱敏） |
 | 🏠 多户支持 | 支持添加多个供水账户 |
 
@@ -86,6 +88,7 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 | previous_month_reading | - | 上月表数 |
 | latest_reading | - | 最新抄表读数 |
 | latest_reading_month | - | 抄表月份 |
+| total_water | m³ | 累计用水（表读数，total_increasing） |
 
 ### 年度统计
 
@@ -103,7 +106,22 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 | 本期用水量（属性） | - | `monthly_usage`：本年度逐月用水量与费用 |
 | 上次缴费金额（属性） | - | `recent_payments`：最近 5 笔缴费记录 |
 
+### 加入能源面板水耗统计
+
+「累计用水」传感器（`total_water`，m³，total_increasing）可直接加入 HA 能源面板：
+
+设置 → 仪表盘 → 能源 → **水耗个体用量** → 添加该传感器。HA 会按表读数差值自动统计日/月/年用水量。
+
 配置时会**实际调用 API 验证**户号与 OpenID，填写错误会立即提示，无需等到加载后查日志。
+
+## 自动化蓝图
+
+内置两个自动化蓝图，点击链接一键导入（设置 → 自动化 → 蓝图 → 导入蓝图）：
+
+| 蓝图 | 说明 | 导入链接 |
+|------|------|---------|
+| 低余额提醒 | 「余额不足」开启时发通知（需先配置阈值） | [导入](https://myhomeassistant.io/redirect/blueprint/?repo=yahooor%2Fzhangjiajie_water_ha&path=blueprints%2Fautomation%2Fzhangjiajie_water_low_balance.yaml) |
+| 高用水提醒 | 本期用水量超过阈值（m³）时发通知 | [导入](https://myhomeassistant.io/redirect/blueprint/?repo=yahooor%2Fzhangjiajie_water_ha&path=blueprints%2Fautomation%2Fzhangjiajie_water_high_usage.yaml) |
 
 ## 数据说明
 
@@ -134,7 +152,9 @@ type: custom:zhangjiajie-water-card
 # entity: sensor.xxx
 ```
 
-v3.2.0 起卡片通过**实体注册表**自动发现本集成的实体（中英文实体名、拼音实体 ID 均可识别），并支持多账户绑定；标题右侧会在余额不足时显示红色提示。
+v3.2.0 起卡片通过**实体注册表**自动发现本集成的实体（中英文实体名、拼音实体 ID 均可识别），并支持多账户绑定；标题右侧会在余额不足时显示红色提示；摘要区下方展示**月度用水趋势柱状图**（数据来自本期用水量的 `monthly_usage` 属性）。
+
+> 注：v3.1 时代的 `entity_prefix` 配置已废弃（无法匹配中文实体名），请改用 `entity`。
 
 ### 刷新模式
 
@@ -148,6 +168,15 @@ v3.2.0 起卡片通过**实体注册表**自动发现本集成的实体（中英
 另可配置**低余额提醒阈值**（元）：余额低于该值时「余额不足」传感器开启，`0` 表示关闭。
 
 ## 更新日志
+
+### v3.3.0 (2026-10-24)
+
+- **修复跨年空窗**：每年 1 月本年账单未出时，用水量/读数不再变 unknown，回退显示最近一条跨年记录（年累计仍按本年计 0）
+- **修复诊断脱敏**：`customer_code`（值为户号）加入脱敏列表
+- **能源面板水耗**：新增「累计用水」传感器（`total_increasing` + m³），可直接加入 HA 能源面板的水耗统计
+- **卡片趋势图**：摘要区下方新增月度用水柱状图；检测到已废弃的 `entity_prefix` 配置时给出控制台提示
+- **自动化蓝图**：内置低余额、高用水提醒两个蓝图，README 提供一键导入链接
+- **测试与 Lint**：纯函数抽取到 `utils.py`（不依赖 HA），CI 新增 pytest 单元测试与 Ruff 检查
 
 ### v3.2.0 (2026-10-24)
 

@@ -1,5 +1,6 @@
 """张家界供水 二进制传感器平台 - 低余额提醒"""
 from __future__ import annotations
+
 import logging
 
 from homeassistant.components.binary_sensor import (

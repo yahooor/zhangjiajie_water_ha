@@ -1,5 +1,5 @@
 /**
- * 张家界供水 Lovelace 卡片 v3.2.0
+ * 张家界供水 Lovelace 卡片 v3.3.0
  * 原生 HTMLElement 实现，无外部依赖。
  *
  * 实体发现（v3.2.0 起基于实体注册表，中英文实体名均可识别）：
@@ -7,6 +7,7 @@
  *      从 unique_id（格式 "{entry_id}_{key}"，entry_id 不含下划线）解析出 key → entity_id 映射；
  *   2. 多账户时可通过 config.entity 指定该账户下任一实体进行绑定；
  *   3. 注册表不可用时回退为旧版 _balance 后缀探测（兼容英文/手工重命名的实体）。
+ *   （v3.1 时代的 entity_prefix 配置已废弃，无法匹配中文实体名）
  *
  * 配置:
  *   type: custom:zhangjiajie-water-card
@@ -37,6 +38,12 @@
 
     setConfig(config) {
       if (!config) throw new Error("无效的卡片配置");
+      if (config.entity_prefix) {
+        console.warn(
+          "[zjwater-card] entity_prefix 已废弃（无法匹配中文实体名），" +
+          "请改用 entity 指定本集成任一传感器实体"
+        );
+      }
       this._config = config;
       this._entityMap = null;
       this._mapPromise = null;
@@ -212,6 +219,28 @@
       return isNaN(n) ? "—" : n.toFixed(decimals);
     }
 
+    // 月度用水趋势迷你柱状图（数据来自本期用水量传感器的 monthly_usage 属性）
+    _getSparkline() {
+      const entity = this._getState("current_usage");
+      const data = entity?.attributes?.monthly_usage;
+      if (!Array.isArray(data) || data.length < 2) return "";
+      const vals = data.map((r) => parseFloat(r.usage)).filter((n) => !isNaN(n));
+      if (!vals.length) return "";
+      const max = Math.max(...vals);
+      const bars = data.map((r) => {
+        const u = parseFloat(r.usage);
+        const raw = String(r.month || "");
+        const label = raw.length === 6 ? `${parseInt(raw.slice(4), 10)}月` : raw;
+        const h = isNaN(u) || max <= 0 ? 0 : Math.max(3, Math.round((u / max) * 52));
+        const tip = `${label}: ${isNaN(u) ? "—" : u + " m³"}`;
+        return `<div class="bar-col" title="${tip}"><div class="bar" style="height:${h}px"></div><div class="bar-label">${label}</div></div>`;
+      }).join("");
+      return `<div class="details-section" style="padding-bottom:4px">
+    <div class="details-title"><ha-icon icon="mdi:chart-histogram" style="--mdc-icon-size:14px"></ha-icon>月度用水趋势（${data.length} 个月）</div>
+    <div class="chart">${bars}</div>
+  </div>`;
+    }
+
     // ---------- 渲染 ----------
 
     _getStyles() {
@@ -304,6 +333,23 @@
           display: flex; align-items: center; gap: 5px;
         }
         .detail-value { color: var(--primary-text-color, #212121); font-weight: 500; }
+        .chart {
+          display: flex; align-items: flex-end; gap: 3px; height: 78px;
+        }
+        .bar-col {
+          flex: 1; min-width: 0; height: 100%;
+          display: flex; flex-direction: column;
+          justify-content: flex-end; align-items: center;
+        }
+        .bar {
+          width: 100%; max-width: 28px;
+          background: var(--primary-color, #1565c0); opacity: 0.85;
+          border-radius: 3px 3px 0 0;
+        }
+        .bar-label {
+          font-size: 0.55em; color: var(--secondary-text-color, #727272);
+          margin-top: 3px; white-space: nowrap;
+        }
         .update-time {
           font-size: 0.7em;
           color: var(--secondary-text-color, #727272);
@@ -380,6 +426,7 @@
       <div class="summary-value">${this._fmt(au, 1)}<span class="summary-unit">m³</span></div>
     </div>
   </div>
+  ${this._getSparkline()}
   <div class="details-section">
     <div class="details-title"><ha-icon icon="mdi:format-list-bulleted" style="--mdc-icon-size:14px"></ha-icon>费用明细（${rm}）</div>
     <div class="detail-row"><span class="detail-label"><ha-icon icon="mdi:water-outline" style="--mdc-icon-size:14px"></ha-icon>水费</span><span class="detail-value">${this._fmt(wf)} 元</span></div>
@@ -412,5 +459,5 @@
     preview: false,
     documentationURL: "https://github.com/yahooor/zhangjiajie_water_ha",
   });
-  console.info("[zjwater-card] v3.2.0 registered (entity-registry based detection)");
+  console.info("[zjwater-card] v3.3.0 registered (entity-registry based detection)");
 })();

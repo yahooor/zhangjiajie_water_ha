@@ -1,0 +1,7 @@
+# Ruff 基础配置
+target-version = "py312"
+line-length = 120
+
+[lint]
+# BLE001（宽泛 except）：HA 集成在卸载/刷新路径上按惯例兜底捕获并记日志
+ignore = ["BLE001"]

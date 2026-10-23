@@ -1,5 +1,6 @@
 """Config flow for Zhangjiajie Water integration."""
 from __future__ import annotations
+
 import logging
 from typing import Any
 
@@ -87,7 +88,7 @@ class ZhangjiajieWaterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> "ZhangjiajieWaterOptionsFlow":
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> ZhangjiajieWaterOptionsFlow:
         """Get the options flow for this handler."""
         return ZhangjiajieWaterOptionsFlow(config_entry)
 

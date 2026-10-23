@@ -1,8 +1,10 @@
 """张家界供水传感器平台"""
 from __future__ import annotations
+
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Callable
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -18,6 +20,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import ZhangjiajieWaterCoordinator
+from .utils import safe_float
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -27,21 +30,14 @@ class ZhangjiajieWaterSensorEntityDescription(SensorEntityDescription):
     attributes_fn: Callable[[dict], dict[str, Any]] | None = None
 
 
-def _num(value) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _usage_history(data: dict) -> dict[str, Any]:
     """本年度逐月用水/费用（挂在本期用水量传感器的属性上）"""
     return {
         "monthly_usage": [
             {
                 "month": rec.get("ysny", ""),
-                "usage": _num(rec.get("sl")),
-                "bill": _num(rec.get("hjfy")),
+                "usage": safe_float(rec.get("sl"), None),
+                "bill": safe_float(rec.get("hjfy"), None),
             }
             for rec in data.get("_usage_records", [])
         ]
@@ -54,8 +50,8 @@ def _payment_history(data: dict) -> dict[str, Any]:
         "recent_payments": [
             {
                 "time": rec.get("sfsj", ""),
-                "amount": _num(rec.get("jfje")),
-                "balance_after": _num(rec.get("bcye")),
+                "amount": safe_float(rec.get("jfje"), None),
+                "balance_after": safe_float(rec.get("bcye"), None),
             }
             for rec in data.get("_payment_records", [])[:5]
         ]
@@ -190,6 +186,16 @@ SENSOR_DESCRIPTIONS: tuple[ZhangjiajieWaterSensorEntityDescription, ...] = (
         name="最新读数",
         icon="mdi:gauge",
         state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: d.get("latest_reading"),
+    ),
+    # 累计表读数（单调递增）：device_class=WATER + TOTAL_INCREASING，
+    # 可直接加入 HA 能源面板的水耗统计（按差值自动计算日/月/年用量）
+    ZhangjiajieWaterSensorEntityDescription(
+        key="total_water",
+        name="累计用水",
+        device_class=SensorDeviceClass.WATER,
+        native_unit_of_measurement="m³",
+        state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda d: d.get("latest_reading"),
     ),
     ZhangjiajieWaterSensorEntityDescription(
