@@ -136,6 +136,25 @@ SENSOR_DESCRIPTIONS: tuple[ZhangjiajieWaterSensorEntityDescription, ...] = (
         value_fn=lambda d: d.get("current_usage"),
         attributes_fn=_usage_history,
     ),
+    # 最新账单的上一期用量（1 月初跨年空窗时显示上一期账单月份）
+    ZhangjiajieWaterSensorEntityDescription(
+        key="previous_usage",
+        name="上月用水量",
+        icon="mdi:water-minus",
+        native_unit_of_measurement="m³",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: d.get("previous_usage"),
+        attributes_fn=lambda d: {"month": d.get("previous_usage_month")},
+    ),
+    ZhangjiajieWaterSensorEntityDescription(
+        key="previous_bill",
+        name="上月费用",
+        icon="mdi:cash-minus",
+        native_unit_of_measurement="CNY",
+        device_class=SensorDeviceClass.MONETARY,
+        value_fn=lambda d: round(float(d["previous_bill"]), 2) if d.get("previous_bill") is not None else None,
+        attributes_fn=lambda d: {"month": d.get("previous_usage_month")},
+    ),
     ZhangjiajieWaterSensorEntityDescription(
         key="current_bill",
         name="本期费用合计",

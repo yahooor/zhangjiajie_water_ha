@@ -195,12 +195,15 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         """获取用水月报：优先本年记录，本年无记录时回退最近一条（跨年空窗）"""
         current_year = str(datetime.now(_TZ_SHANGHAI).year)
         all_records: list = []
+        first_page: list = []  # 首页原始记录（未过滤，最新在前），供"上月用量"取上一期
         latest_any: dict | None = None  # 全部记录中最 new 的一条（跨年回退用）
         page = 1
         while page <= 20:  # 安全上限，防止脏数据死循环
             records = await self.api.fetch_usage_records(page=page)
             if not records:
                 break
+            if page == 1:
+                first_page = records
             if latest_any is None:
                 latest_any = records[0]
             # 逐条过滤，只保留本年记录（一页可能跨年）
@@ -247,12 +250,20 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
                 prev_reading,
                 current_usage,
             )
+        # 上月用量 = 最新账单的上一期（首页第二条；取原始记录，跨年也正确）
+        prev_rec: dict = first_page[1] if len(first_page) > 1 else {}
+        prev_usage_month = format_reading_month(str(prev_rec.get("ysny", "")))
+        prev_usage = _safe_float(prev_rec.get("sl"), None)
+        prev_bill = _safe_float(prev_rec.get("hjfy"), None)
         return {
             "latest_reading_month": formatted_month,
             "latest_reading": numeric_reading,
             "current_month_reading": numeric_reading,
             "previous_month_reading": prev_reading,
             "current_usage": current_usage,
+            "previous_usage": prev_usage,
+            "previous_usage_month": prev_usage_month,
+            "previous_bill": prev_bill,
             "current_bill": _safe_float(latest.get("hjfy"), 0.0),
             "current_water_fee": _safe_float(latest.get("sf"), 0.0),
             "other_fees": _safe_float(latest.get("qtxm"), 0.0),
