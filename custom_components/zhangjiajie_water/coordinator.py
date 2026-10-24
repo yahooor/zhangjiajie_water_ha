@@ -7,11 +7,12 @@ from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import ZhangjiajieWaterAPI
+from .api import ZhangjiajieWaterAPI, ZhangjiajieWaterApiAuthError
 from .const import (
     CONF_DAILY_HOUR,
     CONF_DAILY_MINUTE,
@@ -149,6 +150,10 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
                     )
                 )
             return data
+        except ZhangjiajieWaterApiAuthError as e:
+            # 户号/OpenID 被服务端拒绝：抛出后 DataUpdateCoordinator 会自动
+            # 对 config entry 发起重新认证（reauth）流程
+            raise ConfigEntryAuthFailed(f"户号或 OpenID 未通过服务端验证: {e}") from e
         except UpdateFailed:
             raise
         except Exception as e:

@@ -9,6 +9,13 @@
           "openid": "WeChat OpenID",
           "account_name": "Account Name (optional)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Zhangjiajie Water",
+        "description": "Credentials for account {account_no} ({account_name}) were rejected by the server. Enter a fresh WeChat OpenID.",
+        "data": {
+          "openid": "WeChat OpenID"
+        }
       }
     },
     "error": {
@@ -18,7 +25,8 @@
       "no_data": "Account number or OpenID rejected by the server, please verify them"
     },
     "abort": {
-      "already_configured": "This account is already configured"
+      "already_configured": "This account is already configured",
+      "reauth_successful": "Re-authentication succeeded"
     }
   },
   "options": {

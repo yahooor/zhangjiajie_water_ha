@@ -9,6 +9,13 @@
           "openid": "微信 OpenID",
           "account_name": "账户名称（可选）"
         }
+      },
+      "reauth_confirm": {
+        "title": "重新认证 张家界供水",
+        "description": "户号 {account_no}（{account_name}）的凭据未通过服务端验证，请输入新的微信 OpenID。",
+        "data": {
+          "openid": "微信 OpenID"
+        }
       }
     },
     "error": {
@@ -18,7 +25,8 @@
       "no_data": "户号或 OpenID 未通过服务器验证，请核实"
     },
     "abort": {
-      "already_configured": "此账户已配置"
+      "already_configured": "此账户已配置",
+      "reauth_successful": "重新认证成功"
     }
   },
   "options": {

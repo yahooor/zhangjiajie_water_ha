@@ -46,6 +46,49 @@ class ZhangjiajieWaterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 2
 
+    def __init__(self) -> None:
+        """初始化，缓存重认证目标条目。"""
+        self._reauth_entry: config_entries.ConfigEntry | None = None
+
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
+        """凭据失效时由 HA 触发（ConfigEntryAuthFailed / async_start_reauth）。"""
+        self._reauth_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """要求用户重新输入微信 OpenID（户号不变，直接展示）。"""
+        entry = self._reauth_entry
+        assert entry is not None
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            openid = user_input["openid"].strip()
+            api = ZhangjiajieWaterAPI(
+                account_no=entry.data["account_no"], openid=openid, hass=self.hass
+            )
+            try:
+                await api.async_test_connection()
+            except ZhangjiajieWaterApiAuthError:
+                errors["base"] = "no_data"
+            except ZhangjiajieWaterApiError:
+                errors["base"] = "cannot_connect"
+            if not errors:
+                return self.async_update_reload_and_abort(
+                    entry, data={**entry.data, "openid": openid}
+                )
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required("openid"): str}),
+            errors=errors,
+            description_placeholders={
+                "account_no": entry.data.get("account_no", ""),
+                "account_name": entry.title,
+            },
+        )
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:

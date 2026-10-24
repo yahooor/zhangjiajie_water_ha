@@ -7,6 +7,7 @@ from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import CONF_UPDATE_MODE, DOMAIN, UPDATE_MODE_INTERVAL
 from .coordinator import ZhangjiajieWaterCoordinator
@@ -50,9 +51,12 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = ZhangjiajieWaterCoordinator(hass, entry)
 
-    # 首次刷新：失败时打印警告但继续（不让初始化彻底失败）
+    # 首次刷新：失败时打印警告但继续（不让初始化彻底失败）；
+    # 唯独凭据失效必须上抛，让 HA 对该条目发起重新认证流程
     try:
         await coordinator.async_config_entry_first_refresh()
+    except ConfigEntryAuthFailed:
+        raise
     except Exception as err:
         _LOGGER.warning("首次数据刷新失败，协程将在下次轮询时重试: %s", err)
 
