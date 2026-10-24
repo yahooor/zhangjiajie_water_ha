@@ -292,24 +292,8 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
     def _merge_data(self, usage: dict, payment: dict) -> dict:
         current_year = str(datetime.now(_TZ_SHANGHAI).year)
         annual, annual_bill = sum_annual(usage.get("_usage_records", []), current_year)
-        merged = {
+        merged: dict = {
             "customer_code": self.entry.data.get("account_no", ""),
-            "balance": payment.get("balance", 0.0),
-            "previous_balance": payment.get("previous_balance", 0.0),
-            "invoice_code": payment.get("invoice_code", ""),
-            "last_payment_date": payment.get("last_payment_date"),
-            "last_payment_time": payment.get("last_payment_time"),
-            "last_payment_amount": payment.get("last_payment_amount", 0.0),
-            "current_usage": usage.get("current_usage", 0.0),
-            "current_bill": usage.get("current_bill", 0.0),
-            "current_water_fee": usage.get("current_water_fee", 0.0),
-            "other_fees": usage.get("other_fees", 0.0),
-            "sewage_fee": usage.get("sewage_fee", 0.0),
-            "garbage_fee": usage.get("garbage_fee", 0.0),
-            "latest_reading": usage.get("latest_reading"),
-            "latest_reading_month": usage.get("latest_reading_month"),
-            "current_month_reading": usage.get("current_month_reading"),
-            "previous_month_reading": usage.get("previous_month_reading"),
             "annual_usage": round(annual, 2),
             "annual_bill": round(annual_bill, 2),
             "_year": current_year,  # 供 sensor 层读取当前年份
@@ -317,5 +301,11 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             "_usage_records": usage.get("_usage_records", []),
             "_payment_records": payment.get("_payment_records", []),
         }
+        # usage/payment 的公开键自动并入。不再白名单式逐键复制——
+        # 白名单已两次漏键（_usage_records、previous_usage），新字段静默丢失
+        for source in (usage, payment):
+            for key, value in source.items():
+                if not key.startswith("_"):
+                    merged[key] = value
         _LOGGER.debug("合并数据: %s", merged)
         return merged
