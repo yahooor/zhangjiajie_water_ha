@@ -226,6 +226,7 @@ SENSOR_DESCRIPTIONS: tuple[ZhangjiajieWaterSensorEntityDescription, ...] = (
         native_unit_of_measurement="m³",
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda d: d.get("latest_reading"),
+        attributes_fn=lambda d: {"reading_revision": d.get("reading_revision")},
     ),
     ZhangjiajieWaterSensorEntityDescription(
         key="latest_reading_month",

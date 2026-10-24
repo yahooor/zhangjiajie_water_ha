@@ -26,13 +26,11 @@ from .utils import (
     TZ_SHANGHAI as _TZ_SHANGHAI,
 )
 from .utils import (
-    format_reading_month,
-    parse_payment_datetime,
+    derive_payment,
+    derive_usage,
+    detect_revision,
     sum_annual,
     year_records,
-)
-from .utils import (
-    safe_float as _safe_float,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -80,6 +78,7 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
         self._consecutive_failures = 0
         self._notification_sent = False
         self._daily_unsub = None  # async_track_time_change 的取消回调
+        self._last_latest: tuple[str, float | int | None] | None = None  # (ysny, bybs)，账单修订检测用
 
     async def async_config_entry_first_refresh(self) -> None:
         """注册每日定时监听器 + 首次刷新。
@@ -192,11 +191,14 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("发送失败通知时出错: %s", e)
 
     async def _fetch_usage(self) -> dict:
-        """获取用水月报：优先本年记录，本年无记录时回退最近一条（跨年空窗）"""
+        """获取用水月报：优先本年记录，本年无记录时回退最近一条（跨年空窗）。
+
+        派生逻辑在 utils.derive_usage（纯函数，fixtures 测试覆盖）；
+        本方法只负责分页抓取与账单修订检测。
+        """
         current_year = str(datetime.now(_TZ_SHANGHAI).year)
         all_records: list = []
-        first_page: list = []  # 首页原始记录（未过滤，最新在前），供"上月用量"取上一期
-        latest_any: dict | None = None  # 全部记录中最 new 的一条（跨年回退用）
+        first_page: list = []  # 首页原始记录（未过滤，最新在前），供"上一期账单"取值
         page = 1
         while page <= 20:  # 安全上限，防止脏数据死循环
             records = await self.api.fetch_usage_records(page=page)
@@ -204,8 +206,6 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
                 break
             if page == 1:
                 first_page = records
-            if latest_any is None:
-                latest_any = records[0]
             # 逐条过滤，只保留本年记录（一页可能跨年）
             all_records.extend(year_records(records, current_year))
             # 本页最旧记录已跨年，后续页更旧，停止翻页
@@ -213,81 +213,35 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
             if not last_ym or not str(last_ym).startswith(current_year):
                 break
             page += 1
-        if latest_any is None:
+        if not first_page:
             return {}
-        # 本年尚无账单（如 1 月初）时回退最近一条跨年记录，避免读数/用量显示空窗；
-        # 年累计统计仍只按本年记录计算（空列表 = 0）
-        latest = all_records[0] if all_records else latest_any
         if not all_records:
             _LOGGER.info(
                 "本年（%s）暂无用水记录，回退显示最近一条（%s）",
                 current_year,
-                latest.get("ysny", ""),
+                first_page[0].get("ysny", ""),
             )
-        raw_month = str(latest.get("ysny", ""))
-        formatted_month = format_reading_month(raw_month)
-        raw_reading = latest.get("bybs")
-        numeric_reading = _safe_float(raw_reading, default=None)
-        # is_integer() 对 NaN/Inf 返回 False，避免 int(nan) 抛 ValueError 拖垮整次更新
-        if numeric_reading is not None and numeric_reading.is_integer():
-            numeric_reading = int(numeric_reading)
-        raw_prev_reading = latest.get("sybs")
-        prev_reading = _safe_float(raw_prev_reading, default=None)
-        if prev_reading is not None and prev_reading.is_integer():
-            prev_reading = int(prev_reading)
-        current_usage = _safe_float(latest.get("sl"), 0.0)
-        # 抄表自检：本期读数 − 上期读数 应约等于本期用量，不符则告警提示抄表异常
-        if (
-            numeric_reading is not None
-            and prev_reading is not None
-            and abs(float(numeric_reading) - float(prev_reading) - current_usage) > 0.05
-        ):
+        derived = derive_usage(first_page, all_records, current_year)
+        # 账单修订检测（契约见 README「数据模型与统计契约」）：
+        # 同一账单月份的抄表读数被上游改动时告警——已入长期统计的下降
+        # 会表现为一次仪表重置，需人工核对
+        revision = detect_revision(self._last_latest, derived)
+        if revision is not None:
+            derived["reading_revision"] = revision
             _LOGGER.warning(
-                "抄表数据自检不一致（%s）: 本期读数 %s − 上期读数 %s ≠ 本期用量 %s，"
-                "请核对供水公司账单",
-                formatted_month,
-                numeric_reading,
-                prev_reading,
-                current_usage,
+                "账单修订检测: %s 抄表读数 %s → %s，长期统计中该下降将表现为"
+                "一次仪表重置，请核对供水公司账单",
+                revision["month"],
+                revision["old"],
+                revision["new"],
             )
-        # 上月用量 = 最新账单的上一期（首页第二条；取原始记录，跨年也正确）
-        prev_rec: dict = first_page[1] if len(first_page) > 1 else {}
-        prev_usage_month = format_reading_month(str(prev_rec.get("ysny", "")))
-        prev_usage = _safe_float(prev_rec.get("sl"), None)
-        prev_bill = _safe_float(prev_rec.get("hjfy"), None)
-        return {
-            "latest_reading_month": formatted_month,
-            "latest_reading": numeric_reading,
-            "current_month_reading": numeric_reading,
-            "previous_month_reading": prev_reading,
-            "current_usage": current_usage,
-            "previous_usage": prev_usage,
-            "previous_usage_month": prev_usage_month,
-            "previous_bill": prev_bill,
-            "current_bill": _safe_float(latest.get("hjfy"), 0.0),
-            "current_water_fee": _safe_float(latest.get("sf"), 0.0),
-            "other_fees": _safe_float(latest.get("qtxm"), 0.0),
-            "sewage_fee": _safe_float(latest.get("wsclf"), 0.0),
-            "garbage_fee": _safe_float(latest.get("ljclf"), 0.0),
-            "_usage_records": all_records,
-        }
+        self._last_latest = (derived.get("_latest_ym", ""), derived.get("latest_reading"))
+        return derived
 
     async def _fetch_payment(self) -> dict:
-        """获取最新缴费记录（type=2, page=1）"""
+        """获取最新缴费记录（type=2, page=1），派生逻辑在 utils.derive_payment"""
         records = await self.api.fetch_payment_records(page=1)
-        if not records:
-            return {}
-        latest = records[0]
-        raw_sfsj = latest.get("sfsj", "")
-        return {
-            "balance": _safe_float(latest.get("bcye"), 0.0),
-            "previous_balance": _safe_float(latest.get("scye"), 0.0),
-            "invoice_code": latest.get("kphm", ""),
-            "last_payment_date": raw_sfsj[:10] if raw_sfsj else None,
-            "last_payment_time": parse_payment_datetime(raw_sfsj),
-            "last_payment_amount": _safe_float(latest.get("jfje"), 0.0),
-            "_payment_records": records,
-        }
+        return derive_payment(records)
 
     def _merge_data(self, usage: dict, payment: dict) -> dict:
         current_year = str(datetime.now(_TZ_SHANGHAI).year)

@@ -29,6 +29,12 @@ jobs:
       - name: 单元测试
         run: pytest tests -q
 
+      - name: 三方对账审计（真实 fixtures）
+        run: |
+          python tools/audit_reconciliation.py \
+            --usage tests/fixtures/real/usage_records_page1.json \
+            --payment tests/fixtures/real/payment_records_page1.json
+
   validate-hacs:
     name: "HACS & Hassfest 验证"
     runs-on: ubuntu-latest
