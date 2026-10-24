@@ -1,0 +1,46 @@
+blueprint:
+  name: 张家界供水 低余额提醒
+  description: >-
+    当「余额不足」传感器开启时发送通知。
+    需先在集成选项（设置 → 设备与服务 → 张家界供水 → 配置）中把低余额提醒阈值设为大于 0 的值。
+  domain: automation
+  author: yahooor
+  source_url: >-
+    https://github.com/yahooor/zhangjiajie_water_ha/blob/main/blueprints/automation/zhangjiajie_water_low_balance.yaml
+  input:
+    low_balance_entity:
+      name: 余额不足传感器
+      description: 张家界供水集成提供的 binary_sensor 实体
+      selector:
+        entity:
+          filter:
+            - integration: zhangjiajie_water
+              domain: binary_sensor
+    balance_entity:
+      name: 账户余额传感器
+      description: 用于在通知中显示当前余额
+      selector:
+        entity:
+          filter:
+            - integration: zhangjiajie_water
+    notification_service:
+      name: 通知服务
+      description: 接收提醒的服务，如 notify.mobile_app_你的手机
+      selector:
+        service: {}
+
+trigger:
+  - platform: state
+    entity_id: !input low_balance_entity
+    to: "on"
+
+action:
+  - service: !input notification_service
+    data:
+      title: 水费余额不足
+      message: >-
+        水费账户余额已低于设定阈值，
+        当前余额 {{ states(balance_entity, with_unit=True) }}，请及时缴费。
+
+variables:
+  balance_entity: !input balance_entity

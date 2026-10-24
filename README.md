@@ -118,12 +118,19 @@ type=1&custCode=123456789,1,10,1&wxid=oXxXxXxXxXxXxXxXxXxXxXxXxX
 
 ## 自动化蓝图
 
-内置两个自动化蓝图，点击链接一键导入（设置 → 自动化 → 蓝图 → 导入蓝图）：
+v3.4.1 起**蓝图随集成自动部署**：HACS 安装/升级后，集成启动时会自动把两个蓝图复制到 `<配置目录>/blueprints/automation/`，在 设置 → 自动化与场景 → 蓝图 中直接可用，无需导入。
 
-| 蓝图 | 说明 | 导入链接 |
-|------|------|---------|
-| 低余额提醒 | 「余额不足」开启时发通知（需先配置阈值） | [导入](https://myhomeassistant.io/redirect/blueprint/?repo=yahooor%2Fzhangjiajie_water_ha&path=blueprints%2Fautomation%2Fzhangjiajie_water_low_balance.yaml) |
-| 高用水提醒 | 本期用水量超过阈值（m³）时发通知 | [导入](https://myhomeassistant.io/redirect/blueprint/?repo=yahooor%2Fzhangjiajie_water_ha&path=blueprints%2Fautomation%2Fzhangjiajie_water_high_usage.yaml) |
+| 蓝图 | 说明 |
+|------|------|
+| 低余额提醒 | 「余额不足」开启时发通知（需先在集成选项中配置阈值） |
+| 高用水提醒 | 本期用水量超过阈值（m³）时发通知 |
+
+也可以点击链接一键导入（设置 → 自动化 → 蓝图 → 导入蓝图）：
+
+| 蓝图 | 导入链接 |
+|------|---------|
+| 低余额提醒 | [导入](https://myhomeassistant.io/redirect/blueprint/?repo=yahooor%2Fzhangjiajie_water_ha&path=blueprints%2Fautomation%2Fzhangjiajie_water_low_balance.yaml) |
+| 高用水提醒 | [导入](https://myhomeassistant.io/redirect/blueprint/?repo=yahooor%2Fzhangjiajie_water_ha&path=blueprints%2Fautomation%2Fzhangjiajie_water_high_usage.yaml) |
 
 ## 数据说明
 
@@ -171,6 +178,10 @@ v3.2.0 起卡片通过**实体注册表**自动发现本集成的实体（中英
 另可配置**低余额提醒阈值**（元）：余额低于该值时「余额不足」传感器开启，`0` 表示关闭。
 
 ## 更新日志
+
+### v3.4.1 (2026-10-24)
+
+- **蓝图自动部署**：两个自动化蓝图随集成分发，启动时自动复制到 `<配置目录>/blueprints/automation/`（此前 HACS 只装集成目录，仓库根的蓝图根本不会上机，一键导入链接形同虚设）
 
 ### v3.4.0 (2026-10-24)
 

@@ -38,6 +38,26 @@ async def _async_deploy_card_files(hass: HomeAssistant) -> None:
     await hass.async_add_executor_job(_copy)
 
 
+async def _async_deploy_blueprints(hass: HomeAssistant) -> None:
+    """把内置自动化蓝图部署到 <配置目录>/blueprints/automation/。
+
+    HACS 只安装 custom_components/<domain> 目录，仓库根的蓝图不会上机，
+    因此随集成分发并在设置时复制，用户在蓝图页面即可直接使用。
+    """
+    src_dir = Path(__file__).parent / "blueprints" / "automation"
+    dst_dir = Path(hass.config.path("blueprints", "automation"))
+
+    def _copy() -> None:
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for src in src_dir.glob("*.yaml"):
+            dst = dst_dir / src.name
+            if not dst.exists() or dst.read_bytes() != src.read_bytes():
+                shutil.copyfile(src, dst)
+                _LOGGER.info("已部署自动化蓝图: %s", dst)
+
+    await hass.async_add_executor_job(_copy)
+
+
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """迁移旧版本 ConfigEntry 到最新版本。"""
     _LOGGER.debug("迁移 ConfigEntry: v%s → v2", entry.version)
@@ -67,6 +87,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await _async_deploy_card_files(hass)
     except Exception as err:
         _LOGGER.warning("内置 Lovelace 卡片文件复制失败: %s", err)
+
+    try:
+        await _async_deploy_blueprints(hass)
+    except Exception as err:
+        _LOGGER.warning("内置自动化蓝图部署失败: %s", err)
 
     # 保存 undo 回调，卸载时调用防止监听器泄漏
     unload_listener = entry.add_update_listener(_async_update_listener)
