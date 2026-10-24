@@ -23,24 +23,25 @@ blueprint:
         entity:
           filter:
             - integration: zhangjiajie_water
+              domain: sensor
     notification_service:
-      name: 通知服务
-      description: 接收提醒的服务，如 notify.mobile_app_你的手机
+      name: 通知动作
+      description: 接收提醒的动作，如 notify.mobile_app_你的手机
       selector:
-        service: {}
+        action: {}
 
 trigger:
-  - platform: state
+  - trigger: state
     entity_id: !input low_balance_entity
     to: "on"
 
+variables:
+  balance_entity: !input balance_entity
+
 action:
-  - service: !input notification_service
+  - action: !input notification_service
     data:
       title: 水费余额不足
       message: >-
         水费账户余额已低于设定阈值，
         当前余额 {{ states(balance_entity, with_unit=True) }}，请及时缴费。
-
-variables:
-  balance_entity: !input balance_entity

@@ -14,6 +14,7 @@ blueprint:
         entity:
           filter:
             - integration: zhangjiajie_water
+              domain: sensor
     threshold:
       name: 用水量阈值（m³）
       description: 本期用水量超过该值时通知
@@ -25,18 +26,18 @@ blueprint:
           step: 0.5
           unit_of_measurement: "m³"
     notification_service:
-      name: 通知服务
-      description: 接收提醒的服务，如 notify.mobile_app_你的手机
+      name: 通知动作
+      description: 接收提醒的动作，如 notify.mobile_app_你的手机
       selector:
-        service: {}
+        action: {}
 
 trigger:
-  - platform: numeric_state
+  - trigger: numeric_state
     entity_id: !input usage_entity
     above: !input threshold
 
 action:
-  - service: !input notification_service
+  - action: !input notification_service
     data:
       title: 本期用水量偏高
       message: >-
