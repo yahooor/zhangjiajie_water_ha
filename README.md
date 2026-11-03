@@ -33,6 +33,13 @@ Home Assistant 自定义集成，通过抓取张家界供水微信公众号获�
 
 > 注：自 2025 年起 GitHub 发布资产不可变，Release 不再额外附带集成专用 ZIP；HACS 安装不受影响。
 
+## 本地开发
+
+```bash
+pip install -r requirements-dev.txt   # 测试与 lint 依赖
+pytest -q && ruff check .
+```
+
 ## 配置
 
 设置 → 设备与服务 → 添加集成 → 搜索 "张家界供水"
