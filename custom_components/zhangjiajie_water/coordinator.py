@@ -12,7 +12,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import ZhangjiajieWaterAPI, ZhangjiajieWaterApiAuthError
+from .api import ZhangjiajieWaterAPI, ZhangjiajieWaterApiAuthError, ZhangjiajieWaterApiError
 from .const import (
     CONF_DAILY_HOUR,
     CONF_DAILY_MINUTE,
@@ -214,6 +214,8 @@ class ZhangjiajieWaterCoordinator(DataUpdateCoordinator):
                 break
             page += 1
         if not first_page:
+            if (self.data or {}).get("latest_reading_month"):
+                raise ZhangjiajieWaterApiError("用水记录首页为空：保留已有账单，等待下次刷新")
             return {}
         if not all_records:
             _LOGGER.info(
