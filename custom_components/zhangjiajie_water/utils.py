@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 _LOGGER = logging.getLogger(__name__)
@@ -144,6 +145,45 @@ def derive_payment(records: list) -> dict:
         "last_payment_amount": safe_float(latest.get("jfje"), 0.0),
         "_payment_records": records,
     }
+
+
+def _settlement_month(raw: object) -> str | None:
+    """读上游 xzyf 的年月，不从缴费时间推算缺失的账期。"""
+    value = str(raw).strip()
+    if len(value) not in (6, 8) or not value.isascii() or not value.isdigit():
+        return None
+    try:
+        period = date(int(value[:4]), int(value[4:6]), int(value[6:8]) if len(value) == 8 else 1)
+    except ValueError:
+        return None
+    return period.isoformat()[:7]
+
+
+def payment_history_attributes(data: dict) -> dict[str, Any]:
+    """最近五笔缴费的展示属性，结算账期与实际缴费时间分开保留。"""
+    recent = []
+    for rec in data.get("_payment_records", [])[:5]:
+        after = safe_float(rec.get("bcye"), None)
+        before = safe_float(rec.get("scye"), None)
+        change = round(after - before, 2) if after is not None and before is not None else None
+        item = {
+            "time": rec.get("sfsj", ""),
+            "amount": safe_float(rec.get("jfje"), None),
+            "balance_before": before,
+            "balance_after": after,
+            "balance_change": change,
+        }
+        month = _settlement_month(rec.get("xzyf"))
+        if month is not None:
+            item["settlement_month"] = month
+        recent.append(item)
+    attributes: dict[str, Any] = {
+        "recent_payments": recent,
+        "note": "amount 为 0 的记录是账单自动扣款（非人工缴费），实际扣款额见 balance_change（负值）",
+    }
+    if recent and "settlement_month" in recent[0]:
+        attributes["last_settlement_month"] = recent[0]["settlement_month"]
+    return attributes
 
 
 def detect_revision(

@@ -91,6 +91,23 @@ def test_synthetic_payment_derivation_golden():
     assert timestamps == sorted(timestamps, reverse=True)
 
 
+def test_payment_attributes_distinguish_accounting_month_and_payment_time():
+    records = [
+        {"xzyf": "20400531", "sfsj": "2040-06-01 04:30:00", "jfje": 0, "scye": 25.0, "bcye": 10.0},
+        {"xzyf": "204005", "sfsj": "2040-05-19 20:05:00", "jfje": 24, "scye": 1.0, "bcye": 25.0},
+        {"xzyf": "20400230", "sfsj": "2040-02-01 04:30:00", "jfje": 0},
+        {"sfsj": "2040-01-01 04:30:00", "jfje": 0},
+    ]
+    attributes = utils.payment_history_attributes({"_payment_records": records})
+    rows = attributes["recent_payments"]
+    assert attributes["last_settlement_month"] == "2040-05"
+    assert [r.get("settlement_month") for r in rows] == ["2040-05", "2040-05", None, None]
+    assert rows[0]["time"] == "2040-06-01 04:30:00"
+    assert rows[0]["amount"] == 0 and rows[0]["balance_change"] == -15
+    assert "settlement_month" not in rows[-1]
+    assert utils.payment_history_attributes({})["recent_payments"] == []
+
+
 def test_synthetic_payment_invariants_by_type():
     """对账不变式（按记录类型分列）：
 
