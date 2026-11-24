@@ -1,12 +1,13 @@
 """derive_usage / derive_payment / detect_revision 的 fixtures 测试。
 
-真实 fixture 来自实机协调器诊断（tests/fixtures/real/），边缘用例在
-tests/fixtures/synthetic/。加载方式与 test_utils 相同：importlib 按路径
-加载，绕过集成包 __init__（依赖 homeassistant）。
+常规账单与缴费样本为独立构造的合成数据，仍使用 tests/fixtures/real/ 的
+历史路径；独立构造的边缘样本在 tests/fixtures/synthetic/。加载方式与 test_utils 相同：
+importlib 按路径加载，绕过集成包 __init__（依赖 homeassistant）。
 """
 import importlib.util
 import json
 from datetime import datetime
+from itertools import pairwise
 from pathlib import Path
 
 _UTILS_PATH = (
@@ -30,32 +31,33 @@ def load(name: str) -> list:
     raise FileNotFoundError(name)
 
 
-# ---- 真实数据：2026 年 1-10 月完整账单 ----
+# ---- 合成常规账页：2042 年 1–10 月及上一年末 ----
 
 
-def test_real_usage_derivation_golden():
+def test_synthetic_usage_derivation_golden():
     records = load("usage_records_page1.json")
-    d = utils.derive_usage(records, utils.year_records(records, "2026"), "2026")
-    # 实机核对过的黄金值（2026-10 账单）
-    assert d["latest_reading"] == 756
-    assert d["previous_month_reading"] == 741
-    assert d["current_usage"] == 15.0
-    assert d["current_bill"] == 69.30
-    assert d["current_water_fee"] == 28.35
-    assert d["other_fees"] == 40.95
+    d = utils.derive_usage(records, utils.year_records(records, "2042"), "2042")
+    assert d["latest_reading"] == 4266
+    assert d["previous_month_reading"] == 4243
+    assert d["current_usage"] == 23.0
+    assert d["current_bill"] == 39.10
+    assert d["current_water_fee"] == 29.21
+    assert d["other_fees"] == 9.89
+    assert records[0]["wsclf"] == ""  # 上游缺值回退为 0.0
     assert d["sewage_fee"] == 0.0
     assert d["garbage_fee"] == 0.0
-    assert d["latest_reading_month"] == "2026年10月"
-    # 上一期 = 202609
-    assert d["previous_usage"] == 18.0
-    assert d["previous_bill"] == 83.16
-    assert d["previous_usage_month"] == "2026年9月"
-    # 历史记录完整保留
-    assert len(d["_usage_records"]) == 10
-    assert d["_latest_ym"] == "202610"
+    assert d["latest_reading_month"] == "2042年10月"
+    assert d["previous_usage"] == 21.0
+    assert d["previous_bill"] == 35.70
+    assert d["previous_usage_month"] == "2042年9月"
+    # 年内历史保留且沿用 API 由新到旧的顺序；跨年记录不混入。
+    assert [r["ysny"] for r in d["_usage_records"]] == [
+        f"2042{month:02d}" for month in range(10, 0, -1)
+    ]
+    assert d["_latest_ym"] == "204210"
 
 
-def test_real_reading_delta_matches_billed_usage_every_month():
+def test_synthetic_reading_delta_matches_billed_usage_every_month():
     """对账不变式：每个月 抄表差(bybs-sybs) == 账单用量(sl)"""
     records = load("usage_records_page1.json")
     for rec in records:
@@ -64,30 +66,32 @@ def test_real_reading_delta_matches_billed_usage_every_month():
         assert abs(delta - billed) <= 0.05, f"{rec['ysny']}: delta={delta} billed={billed}"
 
 
-def test_real_annual_sums():
+def test_synthetic_annual_sums():
     records = load("usage_records_page1.json")
-    usage, bill = utils.sum_annual(records, "2026")
-    assert usage == round(sum(float(r["sl"]) for r in records), 2)
-    assert bill == round(sum(float(r["hjfy"]) for r in records), 2)
+    assert utils.sum_annual(records, "2042") == (138.0, 234.60)
+    assert utils.sum_annual(records, "2041") == (8.0, 13.60)
 
 
-def test_real_payment_derivation_golden():
+def test_synthetic_payment_derivation_golden():
     records = load("payment_records_page1.json")
     d = utils.derive_payment(records)
-    # 最新一笔：2026-10-03 账单自动扣款（jfje=0，实际扣款 = 结余差）
-    assert d["last_payment_date"] == "2026-10-03"
+    # 最新一笔是账单自动扣款（jfje=0，实际扣款 = 结余差）。
+    assert d["last_payment_date"] == "2042-10-14"
     assert d["last_payment_amount"] == 0.0
-    assert d["balance"] == 103.36
-    assert d["previous_balance"] == 172.66
-    # ".0" 后缀时间戳正确解析为带时区 datetime
+    assert d["balance"] == 180.30
+    assert d["previous_balance"] == 219.40
+    assert d["invoice_code"] == "SYNTHETIC-AUTO-204210"
+    # ".0" 后缀时间戳正确解析为带时区 datetime。
     assert d["last_payment_time"] == datetime(
-        2026, 10, 3, 4, 16, 58, tzinfo=utils.TZ_SHANGHAI
+        2042, 10, 14, 9, 27, 41, tzinfo=utils.TZ_SHANGHAI
     )
-    # 余额差 = 202610 账单合计（三方对账的第三条边）
-    assert abs((d["previous_balance"] - d["balance"]) - 69.30) <= 0.005
+    assert abs((d["previous_balance"] - d["balance"]) - 39.10) <= 0.005
+    timestamps = [r["sfsj"] for r in d["_payment_records"]]
+    assert len(timestamps) == len(set(timestamps)) == 17
+    assert timestamps == sorted(timestamps, reverse=True)
 
 
-def test_real_payment_invariants_by_type():
+def test_synthetic_payment_invariants_by_type():
     """对账不变式（按记录类型分列）：
 
     - 自动扣款（jfje=0）：结余下降额 == 对应月份账单合计
@@ -96,18 +100,23 @@ def test_real_payment_invariants_by_type():
     payments = load("payment_records_page1.json")
     usage = load("usage_records_page1.json")
     bills = {r["ysny"]: float(r["hjfy"]) for r in usage}
-    auto = manual = 0
+    auto_months = []
+    manual = 0
     for p in payments:
         ym = str(p.get("xzyf", ""))[:6]
         jfje = float(p["jfje"] or 0)
         down = float(p["scye"]) - float(p["bcye"])  # 正 = 扣款，负 = 充值
         if jfje == 0:
             assert abs(down - bills[ym]) <= 0.05, f"{ym}: {down} vs {bills[ym]}"
-            auto += 1
+            auto_months.append(ym)
         else:
+            assert jfje > 0
             assert abs(-down - jfje) <= 0.05, f"{p['xzyf']}: {-down} vs {jfje}"
             manual += 1
-    assert auto >= 5 and manual >= 5
+    assert auto_months == list(bills)
+    assert manual == 6
+    for newer, older in pairwise(payments):
+        assert newer["scye"] == older["bcye"]
 
 
 # ---- 边缘用例 ----
@@ -115,60 +124,70 @@ def test_real_payment_invariants_by_type():
 
 def test_cross_year_page_previous_falls_back_to_last_year():
     records = load("usage_cross_year.json")
-    d = utils.derive_usage(records, utils.year_records(records, "2026"), "2026")
-    assert d["latest_reading"] == 756
-    # 上一期是去年 12 月：取原始记录而非本年过滤列表
-    assert d["previous_usage"] == 18.0
-    assert d["previous_usage_month"] == "2025年12月"
-    assert d["previous_bill"] == 83.16
+    year_records = utils.year_records(records, "2073")
+    d = utils.derive_usage(records, year_records, "2073")
+    assert d["latest_reading"] == 5855
+    assert d["latest_reading_month"] == "2073年1月"
+    # 上一期是去年 12 月：取原始记录而非本年过滤列表。
+    assert [rec["ysny"] for rec in d["_usage_records"]] == ["207301"]
+    assert d["previous_usage"] == 26.0
+    assert d["previous_usage_month"] == "2072年12月"
+    assert d["previous_bill"] == 59.80
 
 
 def test_revised_reading_detects_revision():
     records = load("usage_revised_reading.json")
-    d = utils.derive_usage(records, utils.year_records(records, "2026"), "2026")
-    prev = ("202610", 756)
+    d = utils.derive_usage(records, utils.year_records(records, "2075"), "2075")
+    prev = ("207508", 6571)
     rev = utils.detect_revision(prev, d)
-    assert rev == {"month": "2026年10月", "old": 756, "new": 750}
+    assert rev == {"month": "2075年8月", "old": 6571, "new": 6563}
 
 
 def test_no_revision_when_new_bill_arrives():
     records = load("usage_records_page1.json")
-    d = utils.derive_usage(records, utils.year_records(records, "2026"), "2026")
+    d = utils.derive_usage(records, utils.year_records(records, "2042"), "2042")
     # 上一轮是上个月账单（不同 ysny）→ 不是修订
-    assert utils.detect_revision(("202609", 741), d) is None
+    assert utils.detect_revision(("204209", 4243), d) is None
     # 首轮（无历史）→ 不是修订
     assert utils.detect_revision(None, d) is None
 
 
 def test_dirty_string_numbers():
     records = load("usage_dirty_strings.json")
-    d = utils.derive_usage(records, utils.year_records(records, "2026"), "2026")
-    assert d["latest_reading"] == 756  # "756.00"
-    assert d["previous_month_reading"] == 741  # "0741.0"
-    assert d["current_usage"] == 15.0
-    assert d["sewage_fee"] == 0.0  # 空串 → default 0.0
+    d = utils.derive_usage(records, utils.year_records(records, "2074"), "2074")
+    assert records[0]["bybs"] == "9147.00"
+    assert records[0]["sybs"] == "009128.0"
+    assert d["latest_reading"] == 9147
+    assert d["previous_month_reading"] == 9128
+    assert d["current_usage"] == 19.0
+    assert records[0]["wsclf"] == ""
+    assert d["sewage_fee"] == 0.0  # 空串回退为 0.0
 
 
 def test_empty_records():
-    assert utils.derive_usage([], [], "2026") == {}
+    assert utils.derive_usage([], [], "2073") == {}
     assert utils.derive_payment([]) == {}
 
 
 def test_annual_empty_in_cross_year_january():
-    """1 月初：本年无记录时年累计为 0，但展示数据回退最近一条"""
-    jan_only = [{"ysny": "202512", "sybs": "723", "bybs": "741", "sl": "18",
-                 "sf": "33.84", "qtxm": "49.32", "hjfy": "83.16",
-                 "wsclf": "0", "ljclf": "0"}]
-    d = utils.derive_usage(jan_only, utils.year_records(jan_only, "2026"), "2026")
-    assert d["latest_reading"] == 741
-    usage, bill = utils.sum_annual(d["_usage_records"], "2026")
-    assert usage == 0.0 and bill == 0.0
+    """1 月初：本年无记录时年累计为 0，但展示数据回退最近一条。"""
+    records = [{"ysny": "207612", "sybs": "7345", "bybs": "7374", "sl": "29",
+                "sf": "40.60", "qtxm": "7.25", "hjfy": "47.85",
+                "wsclf": "0.00", "ljclf": "0.00"}]
+    current_year = "2077"
+    d = utils.derive_usage(records, utils.year_records(records, current_year), current_year)
+    assert d["latest_reading"] == 7374
+    assert d["latest_reading_month"] == "2076年12月"
+    assert d["_usage_records"] == []
+    assert utils.sum_annual(records, current_year) == (0.0, 0.0)
+    assert utils.sum_annual(d["_usage_records"], current_year) == (0.0, 0.0)
 
 
 def test_nan_reading_does_not_crash():
-    rec = {"ysny": "202610", "sybs": "nan", "bybs": "inf", "sl": "15",
-           "sf": "0", "qtxm": "0", "hjfy": "0", "wsclf": "0", "ljclf": "0"}
-    d = utils.derive_usage([rec], [rec], "2026")
+    rec = {"ysny": "207809", "sybs": "nan", "bybs": "inf", "sl": "31",
+           "sf": "0.00", "qtxm": "0.00", "hjfy": "0.00", "wsclf": "0.00", "ljclf": "0.00"}
+    d = utils.derive_usage([rec], [rec], "2078")
+    assert d["current_usage"] == 31.0
     # 毒值（NaN/Inf）不进长期统计：读数归 None 而非崩溃或透传
     assert d["latest_reading"] is None
     assert d["previous_month_reading"] is None

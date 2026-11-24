@@ -1,92 +1,155 @@
 [
- {
-  "kphm": "REDACTED",
-  "xzyf": "20261003",
-  "jfje": "0.00",
-  "scye": "172.66",
-  "bcye": "103.36",
-  "sfsj": "2026-10-03 04:16:58.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260907",
-  "jfje": "100.00",
-  "scye": "72.66",
-  "bcye": "172.66",
-  "sfsj": "2026-09-07 06:54:10.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260906",
-  "jfje": "0.00",
-  "scye": "155.82",
-  "bcye": "72.66",
-  "sfsj": "2026-09-06 04:31:53.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260831",
-  "jfje": "50.00",
-  "scye": "105.82",
-  "bcye": "155.82",
-  "sfsj": "2026-08-31 07:34:19.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260807",
-  "jfje": "0.00",
-  "scye": "198.22",
-  "bcye": "105.82",
-  "sfsj": "2026-08-07 04:32:12.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260706",
-  "jfje": "100.00",
-  "scye": "98.22",
-  "bcye": "198.22",
-  "sfsj": "2026-07-06 08:50:46.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260703",
-  "jfje": "0.00",
-  "scye": "172.14",
-  "bcye": "98.22",
-  "sfsj": "2026-07-03 03:47:28.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260603",
-  "jfje": "100.00",
-  "scye": "72.14",
-  "bcye": "172.14",
-  "sfsj": "2026-06-03 12:57:44.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260603",
-  "jfje": "0.00",
-  "scye": "132.20",
-  "bcye": "72.14",
-  "sfsj": "2026-06-03 03:45:51.0",
-  "sfy": "REDACTED"
- },
- {
-  "kphm": "REDACTED",
-  "xzyf": "20260506",
-  "jfje": "50.00",
-  "scye": "82.20",
-  "bcye": "132.20",
-  "sfsj": "2026-05-06 10:05:32.0",
-  "sfy": "REDACTED"
- }
+  {
+    "xzyf": "204210",
+    "sfsj": "2042-10-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "219.40",
+    "bcye": "180.30",
+    "kphm": "SYNTHETIC-AUTO-204210",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204209",
+    "sfsj": "2042-09-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "255.10",
+    "bcye": "219.40",
+    "kphm": "SYNTHETIC-AUTO-204209",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204209",
+    "sfsj": "2042-09-04 13:02:19.0",
+    "jfje": "64.00",
+    "scye": "191.10",
+    "bcye": "255.10",
+    "kphm": "SYNTHETIC-TOPUP-204209",
+    "sfy": "SYNTHETIC-TOPUP"
+  },
+  {
+    "xzyf": "204208",
+    "sfsj": "2042-08-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "201.30",
+    "bcye": "191.10",
+    "kphm": "SYNTHETIC-AUTO-204208",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204208",
+    "sfsj": "2042-08-04 13:02:19.0",
+    "jfje": "38.00",
+    "scye": "163.30",
+    "bcye": "201.30",
+    "kphm": "SYNTHETIC-TOPUP-204208",
+    "sfy": "SYNTHETIC-TOPUP"
+  },
+  {
+    "xzyf": "204207",
+    "sfsj": "2042-07-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "187.10",
+    "bcye": "163.30",
+    "kphm": "SYNTHETIC-AUTO-204207",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204206",
+    "sfsj": "2042-06-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "202.40",
+    "bcye": "187.10",
+    "kphm": "SYNTHETIC-AUTO-204206",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204206",
+    "sfsj": "2042-06-04 13:02:19.0",
+    "jfje": "72.00",
+    "scye": "130.40",
+    "bcye": "202.40",
+    "kphm": "SYNTHETIC-TOPUP-204206",
+    "sfy": "SYNTHETIC-TOPUP"
+  },
+  {
+    "xzyf": "204205",
+    "sfsj": "2042-05-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "157.60",
+    "bcye": "130.40",
+    "kphm": "SYNTHETIC-AUTO-204205",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204204",
+    "sfsj": "2042-04-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "176.30",
+    "bcye": "157.60",
+    "kphm": "SYNTHETIC-AUTO-204204",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204204",
+    "sfsj": "2042-04-04 13:02:19.0",
+    "jfje": "51.00",
+    "scye": "125.30",
+    "bcye": "176.30",
+    "kphm": "SYNTHETIC-TOPUP-204204",
+    "sfy": "SYNTHETIC-TOPUP"
+  },
+  {
+    "xzyf": "204203",
+    "sfsj": "2042-03-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "157.60",
+    "bcye": "125.30",
+    "kphm": "SYNTHETIC-AUTO-204203",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204202",
+    "sfsj": "2042-02-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "169.50",
+    "bcye": "157.60",
+    "kphm": "SYNTHETIC-AUTO-204202",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204202",
+    "sfsj": "2042-02-04 13:02:19.0",
+    "jfje": "45.00",
+    "scye": "124.50",
+    "bcye": "169.50",
+    "kphm": "SYNTHETIC-TOPUP-204202",
+    "sfy": "SYNTHETIC-TOPUP"
+  },
+  {
+    "xzyf": "204201",
+    "sfsj": "2042-01-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "144.90",
+    "bcye": "124.50",
+    "kphm": "SYNTHETIC-AUTO-204201",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204112",
+    "sfsj": "2041-12-14 09:27:41.0",
+    "jfje": "0.00",
+    "scye": "158.50",
+    "bcye": "144.90",
+    "kphm": "SYNTHETIC-AUTO-204112",
+    "sfy": "SYNTHETIC-AUTO"
+  },
+  {
+    "xzyf": "204112",
+    "sfsj": "2041-12-04 13:02:19.0",
+    "jfje": "63.00",
+    "scye": "95.50",
+    "bcye": "158.50",
+    "kphm": "SYNTHETIC-TOPUP-204112",
+    "sfy": "SYNTHETIC-TOPUP"
+  }
 ]

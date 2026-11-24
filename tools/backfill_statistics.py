@@ -3,14 +3,15 @@
 原理：
   - 上游只提供账单时点的累计读数（月度台阶，无日内数据），因此回填点
     = 每月自动扣款结算时点（xzyf）的 bybs；
-  - rebase：live 序列首观测（2026-10-23）sum 基线为 0，为使回填序列与
-    live 序列无缝衔接（sum 单调、无假重置），回填点 sum = bybs − 最新读数；
-  - 月度 change 因此等于账单用量：9 月窗口 = (−15) − (−33) = 18 ✓。
+  - rebase：以实机序列首观测的 sum 基线 0 为参照，回填点 sum = bybs − 最新读数，
+    使回填序列与实机序列衔接（sum 单调、无假重置）；
+  - 月度 change 等于相邻回填点的 sum 之差，即对应账单用量。
 
-用法（在仓库根，实机可达时）：
-  python tools/backfill_statistics.py \
-    --usage tests/fixtures/real/usage_records_page1.json \
-    --payment tests/fixtures/real/payment_records_page1.json
+用法（在仓库根运行；会写入真实 Home Assistant 长期统计）：
+  python tools/backfill_statistics.py --usage /path/outside-repo/verified-usage.json --payment /path/outside-repo/verified-payment.json
+
+请将示例中的占位路径替换为仓库外、已经核实且与目标水表匹配的真实用水与缴费账单。
+禁止使用仓库中的任何测试 fixtures（包括历史路径 tests/fixtures/real/）回填实机。
 """
 from __future__ import annotations
 
